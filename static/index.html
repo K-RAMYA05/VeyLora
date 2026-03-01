@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Arcane Artifact Hunt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at top, #203a60 0%, #050812 55%, #02030a 100%);
+      --accent: #ffca5c;
+      --accent-soft: rgba(255, 202, 92, 0.15);
+      --accent-strong: #f7a600;
+      --danger: #ff6b7a;
+      --surface: rgba(15, 23, 42, 0.82);
+      --surface-soft: rgba(15, 23, 42, 0.6);
+      --border-subtle: rgba(148, 163, 184, 0.35);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-pill: 999px;
+      --transition-fast: 160ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-main);
+      background: var(--bg-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1120px;
+      min-height: 80vh;
+      background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98));
+      border-radius: 28px;
+      border: 1px solid rgba(148,163,184,0.3);
+      box-shadow: var(--shadow-soft);
+      padding: 20px 22px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app-shell::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(56,189,248,0.08) 0, transparent 55%),
+        radial-gradient(circle at 100% 0%, rgba(244,114,182,0.09) 0, transparent 55%),
+        radial-gradient(circle at 50% 100%, rgba(251,191,36,0.12) 0, transparent 60%);
+      opacity: 0.9;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .app-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px 6px 12px;
+      border-bottom: 1px solid rgba(148,163,184,0.35);
+      margin-bottom: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 20%, #facc15, #f97316 65%, #7c2d12 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 1px rgba(248,250,252,0.15), 0 12px 28px rgba(0,0,0,0.8);
+      font-size: 22px;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-family: "Cinzel", "Times New Roman", serif;
+      letter-spacing: 0.04em;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--text-muted);
+    }
+
+    .top-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.07), rgba(15,23,42,0.96));
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    .meta-pill span.value {
+      font-size: 12px;
+      color: var(--text-main);
+      letter-spacing: 0.08em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 12px;
+      }
+      .app-shell {
+        border-radius: 20px;
+        padding: 16px 14px 18px;
+      }
+      .layout {
+        grid-template-columns: minmax(0,1fr);
+      }
+    }
+
+    .card {
+      background: linear-gradient(135deg, var(--surface), var(--surface-soft));
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 16px 16px 14px;
+      box-shadow: 0 16px 30px rgba(15,23,42,0.95);
+      backdrop-filter: blur(18px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -35%;
+      background: radial-gradient(circle at top, rgba(248,250,252,0.06), transparent 60%);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-family: "Cinzel", "Times New Roman", serif;
+      font-size: 17px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title span.accent {
+      color: var(--accent);
+      font-size: 18px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .tag-pill {
+      padding: 4px 9px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(56,189,248,0.5);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #e0f2fe;
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.22), rgba(15,23,42,0.96));
+      white-space: nowrap;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      flex: 1 1 140px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+    }
+
+    input {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      background: rgba(15,23,42,0.9);
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+    }
+
+    input::placeholder {
+      color: rgba(148,163,184,0.6);
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      background: rgba(15,23,42,0.95);
+      box-shadow: 0 0 0 1px rgba(250,204,21,0.3), 0 0 0 10px rgba(250,204,21,0.05);
+      transform: translateY(-0.5px);
+    }
+
+    .primary-btn, .ghost-btn {
+      border-radius: 999px;
+      border: none;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #111827;
+      box-shadow: 0 12px 24px rgba(251,191,36,0.45);
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1px) scale(1.01);
+      box-shadow: 0 18px 40px rgba(251,191,36,0.65);
+    }
+
+    .primary-btn:active {
+      transform: translateY(0) scale(0.99);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.85);
+    }
+
+    .ghost-btn {
+      background: transparent;
+      border: 1px solid rgba(148,163,184,0.6);
+      color: var(--text-main);
+    }
+
+    .ghost-btn:hover {
+      background: rgba(15,23,42,0.85);
+      border-color: rgba(248,250,252,0.5);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .helper-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .lobby-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.1fr);
+      gap: 14px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 900px) {
+      .lobby-grid {
+        grid-template-columns: minmax(0,1fr);
+      }
+    }
+
+    .lobby-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .pill-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .pill-value {
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .players-panel, .hint-panel {
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.94), rgba(15,23,42,0.96));
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(107,114,128,0.7);
+      padding: 10px 11px 11px;
+      box-shadow: 0 12px 24px rgba(15,23,42,0.9);
+    }
+
+    .players-header, .hint-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-title span.icon {
+      font-size: 14px;
+    }
+
+    #players {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .player-chip {
+      padding: 6px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(15,23,42,0.98));
+      border: 1px solid rgba(96,165,250,0.6);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .player-chip.me {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent-soft), rgba(15,23,42,0.98));
+    }
+
+    .player-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+    }
+
+    .player-name {
+      font-size: 12px;
+    }
+
+    .hint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .hint-card {
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,64,175,0.7));
+      padding: 8px 9px 7px;
+      font-size: 12px;
+      box-shadow: 0 10px 18px rgba(15,23,42,0.85);
+    }
+
+    .hint-artifact {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: rgba(191,219,254,0.95);
+      margin-bottom: 2px;
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+
+    .hint-meta {
+      margin-top: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: rgba(148,163,184,0.9);
+    }
+
+    .artifacts-panel {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(148,163,184,0.4);
+    }
+
+    .artifacts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .artifacts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .artifact-pill {
+      padding: 7px 8px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.96), rgba(88,28,135,0.85));
+      border: 1px solid rgba(192,132,252,0.6);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      min-height: 38px;
+    }
+
+    .artifact-pill span.icon {
+      font-size: 13px;
+    }
+
+    .artifact-pill span.name {
+      font-size: 11px;
+      color: #e5e7eb;
+    }
+
+    .world-panel {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148,163,184,0.35);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .world-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .world-column-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: rgba(148,163,184,0.9);
+      margin-bottom: 4px;
+    }
+
+    .world-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .world-list li {
+      margin: 1px 0;
+      color: rgba(209,213,219,0.9);
+    }
+
+    .world-layout {
+      position: relative;
+      margin-top: 10px;
+      min-height: 260px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid rgba(129,140,248,0.7);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.9);
+    }
+
+    .world-backdrop {
+      position: absolute;
+      inset: 0;
+      background-image: url("/image/fantasy_world.jpeg");
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.06);
+      filter: saturate(1.1) contrast(1.05) brightness(0.95);
+      animation: worldPan 32s linear infinite alternate;
+    }
+
+    .world-gradient {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(15,23,42,0.15), transparent 55%),
+        linear-gradient(to top, rgba(15,23,42,0.95), rgba(15,23,42,0.4));
+    }
+
+    .world-foreground {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px 14px 12px;
+      min-height: 260px;
+    }
+
+    .world-title-strip {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 70%;
+    }
+
+    .world-title-strip h3 {
+      margin: 0;
+      font-family: "Cinzel", "Times New Roman", serif;
+      font-size: 20px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(0,0,0,0.85);
+    }
+
+    .world-title-strip p {
+      margin: 0;
+      font-size: 12px;
+      color: rgba(226,232,240,0.9);
+      text-shadow: 0 0 14px rgba(0,0,0,0.85);
+    }
+
+    .world-bottom-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .world-hints-shell {
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .world-hints-shell .hint-list {
+      max-height: 120px;
+    }
+
+    .world-hints-shell .helper-text {
+      margin-bottom: 4px;
+    }
+
+    .world-hints-shell .hint-header {
+      margin-bottom: 4px;
+    }
+
+    .world-hints-shell .panel-title {
+      text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    .world-hints-shell .primary-btn {
+      box-shadow: 0 10px 24px rgba(251,191,36,0.7);
+    }
+
+    .world-hints-shell .primary-btn:hover {
+      box-shadow: 0 16px 36px rgba(251,191,36,0.9);
+    }
+
+    .world-hints-shell .hint-card {
+      background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(56,189,248,0.9));
+    }
+
+    .world-avatar {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      font-size: 11px;
+      color: rgba(226,232,240,0.9);
+      text-shadow: 0 0 12px rgba(0,0,0,0.85);
+    }
+
+    .world-avatar-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(251,191,36,0.9);
+      background: radial-gradient(circle at 0% 0%, rgba(250,250,250,0.18), rgba(15,23,42,0.98));
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .world-avatar-pill span.accent {
+      color: var(--accent);
+    }
+
+    @keyframes worldPan {
+      0% {
+        transform: scale(1.06) translate3d(0, 0, 0);
+      }
+      50% {
+        transform: scale(1.08) translate3d(-10px, -6px, 0);
+      }
+      100% {
+        transform: scale(1.06) translate3d(8px, 4px, 0);
+      }
+    }
+
+    .upload-row {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148,163,184,0.4);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .upload-row input[type="file"] {
+      font-size: 11px;
+    }
+
+    .upload-status {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .game-over-banner {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.65), rgba(0,0,0,0.9));
+      backdrop-filter: blur(16px);
+    }
+
+    .game-over-card {
+      background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(88,28,135,0.9));
+      border-radius: 20px;
+      border: 1px solid rgba(251,191,36,0.7);
+      padding: 18px 20px 16px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.95);
+    }
+
+    .game-over-title {
+      font-family: "Cinzel", "Times New Roman", serif;
+      font-size: 20px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .game-over-body {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 12px;
+    }
+
+    .game-over-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .game-over-close {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.7);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .badge span.accent {
+      color: var(--accent);
+    }
+
+    .timer-warning {
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-inner">
+      <header class="top-bar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">✨</div>
+          <div class="brand-text">
+            <div class="brand-title">Arcane Artifact Hunt</div>
+            <div class="brand-subtitle">Real‑time fantasy deduction game</div>
+          </div>
+        </div>
+        <div class="top-meta">
+          <div class="meta-pill">
+            SESSION
+            <span class="value" id="sessionCode">—</span>
+          </div>
+          <div class="meta-pill">
+            TIME LEFT
+            <span class="value" id="timer">—:—</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <!-- LEFT: JOIN / SETUP -->
+        <section class="card" id="joinCard">
+          <div class="card-inner">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span class="accent">▲</span>Enter the Realm
+                </div>
+                <div class="card-subtitle">
+                  Join your party using a shared session ID and your wizard name.
+                </div>
+              </div>
+              <span class="tag-pill">5 players · 12 minutes</span>
+            </div>
+
+            <div class="field-group">
+              <div class="field-row">
+                <div class="field">
+                  <label for="username">Wizard name</label>
+                  <input id="username" placeholder="eg. Aurelia Stormweaver"/>
+                </div>
+                <div class="field">
+                  <label for="session">Session ID</label>
+                  <input id="session" placeholder="Leave empty to generate"/>
+                </div>
+              </div>
+
+              <div class="btn-row">
+                <button class="primary-btn" id="btnJoin">
+                  <span>Join / Host Game</span>
+                </button>
+                <button class="ghost-btn" id="btnGenerateSession" type="button">
+                  Generate Session ID
+                </button>
+                <button class="ghost-btn" id="btnHintInfo" type="button">
+                  Hint rules
+                </button>
+              </div>
+
+              <div class="helper-text">
+                New lobby? Leave the Session ID empty and we’ll conjure one for you.
+                Share it with your friends so everyone joins the same realm.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: LOBBY / GAME STATE -->
+        <section class="card" id="lobby" style="display:none">
+          <div class="card-inner">
+            <div class="lobby-header">
+              <div>
+                <div class="card-title">
+                  <span class="accent">◆</span>Enchanted Lobby
+                </div>
+                <div id="status" class="status-text">
+                  Waiting to join the realm…
+                </div>
+              </div>
+              <div class="badge">
+                <span class="accent">●</span>
+                Live party status
+              </div>
+            </div>
+
+            <div class="lobby-grid">
+              <div class="players-panel">
+                <div class="players-header">
+                  <div class="panel-title">
+                    <span class="icon">🧙‍♀️</span>
+                    Party
+                  </div>
+                  <button class="primary-btn" id="btnReady" style="display:none;">
+                    Start Game
+                  </button>
+                </div>
+                <div id="players"></div>
+              </div>
+            </div>
+
+            <div class="artifacts-panel">
+              <div class="artifacts-header">
+                <div class="panel-title">
+                  <span class="icon">🏺</span>
+                  Hidden artifacts
+                </div>
+              </div>
+              <div id="artifacts" class="artifacts-grid">
+                <!-- Filled dynamically as artifacts are discovered -->
+              </div>
+            </div>
+
+            <div class="world-panel">
+              <div class="panel-title">
+                <span class="icon">🌌</span>
+                Realm overview
+              </div>
+              <div style="margin-top:4px;">
+                Eight enchanted rooms exist in this realm. The same twelve artifacts are reused every session, but their locations are reshuffled each time. You must rely on clues and deduction to find them all.
+              </div>
+              <div class="world-grid">
+                <div>
+                  <div class="world-column-title">Rooms</div>
+                  <ul class="world-list">
+                    <li>Great Hall</li>
+                    <li>Moon Library</li>
+                    <li>Crystal Conservatory</li>
+                    <li>Dungeon Labs</li>
+                    <li>Skyward Tower</li>
+                    <li>Fae Garden</li>
+                    <li>Astral Observatory</li>
+                    <li>Mirror Wing</li>
+                  </ul>
+                </div>
+                <div>
+                  <div class="world-column-title">Artifacts</div>
+                  <ul class="world-list">
+                    <li>Phoenix Feather</li>
+                    <li>Dragon Scale</li>
+                    <li>Moonstone Amulet</li>
+                    <li>Spellbound Quill</li>
+                    <li>Wand of Whisper</li>
+                    <li>Elder Grimoire</li>
+                    <li>Goblet of Echoes</li>
+                    <li>Starlight Compass</li>
+                    <li>Cloak of Mist</li>
+                    <li>Runed Lantern</li>
+                    <li>Time-Twined Hourglass</li>
+                    <li>Singing Chalice</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CAPTURE PHASE: WORD PROMPT UI -->
+        <section class="card" id="capturePhase" style="display:none">
+          <div class="card-inner">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span class="accent">✶</span>Capture Phase
+                </div>
+                <div class="card-subtitle">
+                  You have 12 minutes to capture the best possible image that matches your secret word.
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.14em; color:var(--text-muted); margin-bottom:6px;">
+                Your word
+              </div>
+              <div id="promptWord" style="font-family:'Cinzel','Times New Roman',serif; font-size:26px; letter-spacing:0.08em; color:var(--accent); margin-bottom:10px;">
+                —
+              </div>
+              <div style="font-size:12px; color:var(--text-muted);">
+                Find or stage a scene that strongly evokes this word in a fantasy universe (think Hogwarts corridors, enchanted forests, cursed artifacts). The clearer and more on-theme your photo, the better your score and hints.
+              </div>
+              <div class="upload-row">
+                <input type="file" id="photoInput" accept="image/*"/>
+                <button class="primary-btn" id="btnUploadPhoto" type="button">
+                  Upload photo
+                </button>
+                <span class="upload-status" id="uploadStatus">No photo submitted yet.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- WORLD PHASE: FANTASY WORLD IMAGE & HINTS -->
+        <section class="card" id="worldPhase" style="display:none">
+          <div class="card-inner">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span class="accent">♜</span>Arcane World
+                </div>
+                <div class="card-subtitle">
+                  Travel through the eight rooms of the castle, uncover hidden artifacts, and spend your hard-earned hints.
+                </div>
+              </div>
+            </div>
+
+            <div class="world-layout">
+              <div class="world-backdrop" aria-hidden="true"></div>
+              <div class="world-gradient" aria-hidden="true"></div>
+              <div class="world-foreground">
+                <div class="world-title-strip">
+                  <h3>The Arcane World</h3>
+                  <p>Step into the shared fantasy realm. Artifacts are hidden across the castle — spend your hints wisely to uncover them.</p>
+                </div>
+                <div class="world-bottom-row">
+                  <div class="world-hints-shell">
+                    <div class="hint-header">
+                      <div class="panel-title">
+                        <span class="icon">💡</span>
+                        Clue channel
+                      </div>
+                      <button class="primary-btn" id="btnRequestHint">
+                        Request hint
+                      </button>
+                    </div>
+                    <div class="helper-text" id="worldHintHelper">
+                      Hints will unlock after everyone has uploaded their photo and scoring is complete.
+                    </div>
+                    <div id="hints" class="hint-list"></div>
+                  </div>
+                  <div class="world-avatar">
+                    <div class="world-avatar-pill">
+                      <span class="accent">★</span>
+                      <span id="hintQuotaMessage">Your hint quota will appear here after scoring.</span>
+                    </div>
+                    <span>Use what you’ve captured to navigate this world — your image quality fuels your magic.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="game-over-banner" id="gameOverBanner">
+    <div class="game-over-card">
+      <div class="game-over-title">Game Complete</div>
+      <div class="game-over-body" id="gameOverBody">
+      </div>
+      <div class="game-over-meta" id="gameOverMeta">
+      </div>
+      <div class="game-over-close">
+        <button class="primary-btn" id="gameOverCloseBtn">Return to lobby</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const socket = io();
+let my = { name: null, session: null };
+
+const sessionCodeEl = document.getElementById('sessionCode');
+const timerEl = document.getElementById('timer');
+const statusEl = document.getElementById('status');
+const playersEl = document.getElementById('players');
+const hintsEl = document.getElementById('hints');
+const artifactsEl = document.getElementById('artifacts');
+const lobbyEl = document.getElementById('lobby');
+const joinCardEl = document.getElementById('joinCard');
+const capturePhaseEl = document.getElementById('capturePhase');
+const worldPhaseEl = document.getElementById('worldPhase');
+const promptWordEl = document.getElementById('promptWord');
+const usernameInput = document.getElementById('username');
+const sessionInput = document.getElementById('session');
+const joinBtn = document.getElementById('btnJoin');
+const generateBtn = document.getElementById('btnGenerateSession');
+const hintRulesBtn = document.getElementById('btnHintInfo');
+const hintRequestBtn = document.getElementById('btnRequestHint');
+const readyBtn = document.getElementById('btnReady');
+const photoInput = document.getElementById('photoInput');
+const uploadBtn = document.getElementById('btnUploadPhoto');
+const uploadStatus = document.getElementById('uploadStatus');
+const hintHelperText = document.getElementById('worldHintHelper');
+const hintQuotaMessage = document.getElementById('hintQuotaMessage');
+const gameOverBanner = document.getElementById('gameOverBanner');
+const gameOverBody = document.getElementById('gameOverBody');
+const gameOverMeta = document.getElementById('gameOverMeta');
+const gameOverCloseBtn = document.getElementById('gameOverCloseBtn');
+let hintsUnlocked = false;
+let gameHasStarted = false;
+
+function formatTime(seconds) {
+  const s = Math.max(0, seconds | 0);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return (m < 10 ? '0' + m : m) + ':' + (r < 10 ? '0' + r : r);
+}
+
+function joinSessionWithId(sessionId, username) {
+  if (!sessionId) {
+    statusEl.textContent = 'Session ID missing. Generate or enter a valid ID.';
+    return;
+  }
+
+  my.name = username;
+  my.session = sessionId;
+  sessionCodeEl.textContent = sessionId;
+  lobbyEl.style.display = 'block';
+  socket.emit('join_session', { username: username, session_id: sessionId });
+  statusEl.textContent = 'Awaiting all players… share session ' + sessionId;
+}
+
+// Initially, hints are locked until the game starts.
+if (hintRequestBtn) {
+  hintRequestBtn.style.display = 'none';
+}
+if (hintHelperText) {
+  hintHelperText.textContent = 'Hints will unlock after everyone has uploaded their photo and scoring is complete.';
+}
+
+joinBtn.onclick = () => {
+  const username = usernameInput.value.trim() || ("Mage " + Math.floor(Math.random()*100));
+  const providedSession = sessionInput.value.trim();
+
+  if (!providedSession) {
+    // Host flow: create a new session id, then join it.
+    fetch('/create_session', { method: 'POST' })
+      .then(r => r.json())
+      .then(j => {
+        console.log('create_session (join) response', j);
+        const sid = j.session_id || j.sessionId || j.id;
+        if (!sid) {
+          statusEl.textContent = 'Session could not be created. Please try again.';
+          alert('Failed to receive a session id from the server.');
+          return;
+        }
+        sessionInput.value = sid;
+        joinSessionWithId(sid, username);
+      })
+      .catch(err => {
+        console.error('Failed to create session', err);
+        statusEl.textContent = 'Unable to create session. Please retry.';
+      });
+  } else {
+    // Join existing session created by the host.
+    statusEl.textContent = 'Joining existing session ' + providedSession + '…';
+    joinSessionWithId(providedSession, username);
+  }
+};
+
+generateBtn.onclick = () => {
+  const username = usernameInput.value.trim();
+
+  if (!username) {
+    statusEl.textContent = 'Enter your wizard name before generating a session.';
+    alert('Please enter your wizard name before generating a session.');
+    return;
+  }
+
+  fetch('/create_session', { method: 'POST' })
+    .then(r => r.json())
+    .then(j => {
+      console.log('create_session (generate) response', j);
+      const sid = j.session_id || j.sessionId || j.id;
+      if (!sid) {
+        statusEl.textContent = 'Session could not be generated. Please try again.';
+        alert('Failed to receive a session id from the server.');
+        return;
+      }
+      sessionInput.value = sid;
+      sessionCodeEl.textContent = sid;
+      statusEl.textContent = 'Session generated. You are the host — share ID ' + sid + ' with your party.';
+      // Auto-join the newly generated session so the lobby appears immediately.
+      joinSessionWithId(sid, username);
+    })
+    .catch(err => {
+      console.error('Failed to generate session', err);
+      statusEl.textContent = 'Unable to generate session. Please retry.';
+    });
+};
+
+hintRulesBtn.onclick = () => {
+  alert('Warning: The quality of the images you upload strongly affects your score and how helpful your hints are — aim for clear, on-theme photos.');
+};
+
+hintRequestBtn.onclick = () => {
+  if (!hintsUnlocked) {
+    alert('Hints will be available after everyone has uploaded a photo and scoring is complete.');
+    return;
+  }
+  if (!my.session || !my.name) {
+    alert('Join a session first.');
+    return;
+  }
+  socket.emit('request_hint', { session_id: my.session, username: my.name });
+};
+
+socket.on('joined', (d) => {
+  statusEl.textContent = 'Joined as ' + d.player.name + ' — waiting for party.';
+});
+
+function renderPlayers(list) {
+  playersEl.innerHTML = '';
+  list.forEach(p => {
+    const chip = document.createElement('div');
+    chip.className = 'player-chip' + (p.name === my.name ? ' me' : '');
+
+    const dot = document.createElement('span');
+    dot.className = 'player-dot';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'player-name';
+    nameSpan.textContent = p.name;
+
+    chip.appendChild(dot);
+    chip.appendChild(nameSpan);
+    playersEl.appendChild(chip);
+  });
+}
+
+function updateStartButtonVisibility(list) {
+  if (!readyBtn) return;
+  const count = list.length;
+  const allReady = list.length === 5 && list.every(p => p.ready);
+  if (!gameHasStarted && count === 5) {
+    readyBtn.style.display = 'inline-flex';
+    readyBtn.disabled = allReady;
+    readyBtn.textContent = allReady ? 'Waiting...' : 'Start Game';
+  } else {
+    readyBtn.style.display = 'none';
+  }
+}
+
+socket.on('player_list', (d) => {
+  renderPlayers(d.players);
+  updateStartButtonVisibility(d.players);
+});
+
+socket.on('player_ready_state', (d) => {
+  renderPlayers(d.players);
+  updateStartButtonVisibility(d.players);
+});
+
+if (readyBtn) {
+  readyBtn.onclick = () => {
+    if (!my.session || !my.name) {
+      alert('Join a session first.');
+      return;
+    }
+    readyBtn.disabled = true;
+    readyBtn.textContent = 'Waiting...';
+    socket.emit('player_ready', { session_id: my.session, username: my.name });
+  };
+}
+
+socket.on('game_started', (d) => {
+  statusEl.textContent = 'The ritual begins — capture artifacts and spot the imposter.';
+  gameHasStarted = true;
+  // Phase 1: capture only. Hints remain locked until photos are scored.
+  if (readyBtn) {
+    readyBtn.style.display = 'none';
+  }
+  if (joinCardEl) {
+    joinCardEl.style.display = 'none';
+  }
+  if (capturePhaseEl) {
+    capturePhaseEl.style.display = 'block';
+  }
+  if (d.prompt_word && promptWordEl) {
+    promptWordEl.textContent = d.prompt_word;
+  }
+});
+
+if (uploadBtn && photoInput && uploadStatus) {
+  uploadBtn.onclick = () => {
+    if (!my.session || !my.name) {
+      alert('Join a session first.');
+      return;
+    }
+    const file = photoInput.files[0];
+    if (!file) {
+      alert('Please choose an image to upload.');
+      return;
+    }
+    uploadStatus.textContent = 'Uploading and scoring your photo...';
+    const fd = new FormData();
+    fd.append('photo', file);
+    fd.append('session_id', my.session);
+    fd.append('username', my.name);
+    fetch('/upload_photo', {
+      method: 'POST',
+      body: fd
+    })
+      .then(r => r.json())
+      .then(j => {
+        if (j.error) {
+          uploadStatus.textContent = 'Upload failed: ' + j.error;
+          return;
+        }
+        const score = j.score != null ? Math.round(j.score) : null;
+        if (score !== null) {
+          uploadStatus.textContent = 'Photo scored at ' + score + ' — waiting for other players.';
+        } else {
+          uploadStatus.textContent = 'Photo uploaded; waiting for other players.';
+        }
+      })
+      .catch(err => {
+        console.error('Photo upload failed', err);
+        uploadStatus.textContent = 'Upload failed. Please try again.';
+      });
+  };
+}
+
+socket.on('hints_ready', (d) => {
+  hintsUnlocked = true;
+  // All photos are scored and hints allocated.
+  // Give a short buffer before moving each player into the fantasy world view.
+  statusEl.textContent = 'Scoring complete. The arcane world will open shortly…';
+  const params = new URLSearchParams({
+    session: my.session || '',
+    name: my.name || '',
+  });
+  setTimeout(() => {
+    window.location.href = '/static/fantasy_world.html?' + params.toString();
+  }, 5000);
+});
+
+socket.on('time_tick', (d) => {
+  const seconds = d.time_left ?? 0;
+  timerEl.textContent = formatTime(seconds);
+  if (seconds <= 60) {
+    timerEl.classList.add('timer-warning');
+  } else {
+    timerEl.classList.remove('timer-warning');
+  }
+});
+
+socket.on('hint_response', (d) => {
+  if (d.error) {
+    alert('Hint error: ' + d.error);
+    return;
+  }
+  const card = document.createElement('div');
+  card.className = 'hint-card';
+
+  const art = document.createElement('div');
+  art.className = 'hint-artifact';
+  art.textContent = d.artifact || 'Unknown artifact';
+
+  const text = document.createElement('div');
+  text.className = 'hint-text';
+  text.textContent = d.clue || '';
+
+  const meta = document.createElement('div');
+  meta.className = 'hint-meta';
+  meta.textContent = 'Hint channel · beware of illusions';
+
+  card.appendChild(art);
+  card.appendChild(text);
+  card.appendChild(meta);
+
+  hintsEl.prepend(card);
+});
+
+socket.on('artifact_update', (d) => {
+  // d.result: { ok, message }
+  if (!d || !d.result) return;
+  // Simple visual feedback could be added here when artifacts are claimed.
+});
+
+socket.on('game_over', (d) => {
+  try {
+    const winner = d.winner ? String(d.winner) : 'Unknown';
+    const imposter = d.imposter ? String(d.imposter) : 'Unknown';
+    const reason = d.reason || (d.ranks ? 'Non‑imposters uncovered every artifact and the imposter.' : 'Game complete.');
+
+    gameOverBody.textContent = 'Winner: ' + winner + '. Imposter: ' + imposter + '.';
+    gameOverMeta.textContent = reason;
+    gameOverBanner.style.display = 'flex';
+  } catch (e) {
+    alert('Game Over: ' + JSON.stringify(d));
+  }
+});
+
+gameOverCloseBtn.onclick = () => {
+  gameOverBanner.style.display = 'none';
+};
+</script>
+</body>
+</html>

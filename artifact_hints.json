@@ -1,0 +1,79 @@
+{
+  "Great Hall": {
+    "Goblet of Echoes": [
+      "The cup that remembers every toast still hums quietly where voices once rose the loudest.",
+      "Look where feasts end and speeches begin; the silver lip that never cools is waiting.",
+      "Beneath the banner of the oldest house, your reflection answers twice before you speak."
+    ],
+    "Singing Chalice": [
+      "A soft note rings whenever candle wax drips nearby, though no musician is in sight.",
+      "Follow the faint melody that drowns beneath clattering cutlery and scraping chairs.",
+      "Where goblets are stacked in silence, one hums to itself when the hall is empty."
+    ]
+  },
+  "Potions Classroom": {
+    "Dragon Scale": [
+      "Near the cauldron that never cools, something iridescent refuses to melt.",
+      "The ingredient shelf labelled 'volatile' hides one shard that glows when touched.",
+      "Check the scorch marks on the stone—one ember hardened into scaled armor."
+    ],
+    "Moonstone Amulet": [
+      "A pale light pools in the only corner untouched by green potion-glow.",
+      "Where spills are wiped away every lesson, a single droplet still shimmers like moonlight.",
+      "The amulet lies where shadow and steam cross paths, colder than any vial around it."
+    ]
+  },
+  "Library": {
+    "Elder Grimoire": [
+      "The heaviest book is not on the lowest shelf—listen for pages that turn themselves.",
+      "Dust gathers everywhere except on the spine that refuses to age.",
+      "In the aisle no ladder ever reaches, a book stares back when you read its title."
+    ],
+    "Spellbound Quill": [
+      "Ink dries in every bottle but one, where feather-tips drink in silence.",
+      "Look for parchment filled with words no one remembers writing.",
+      "The quill hides where margins are most crowded, twitching at every whispered question."
+    ]
+  },
+  "Herbology Greenhouse": {
+    "Runed Lantern": [
+      "Among plants that glimmer on their own, one lantern glows with no flame inside.",
+      "Vines curl away from a hanging light, as if reading the symbols etched on its glass.",
+      "When the sun sets, only one corner brightens first—the lantern’s runes wake before nightfall."
+    ]
+  },
+  "Defense Classroom": {
+    "Wand of Whisper": [
+      "The training dummy that flinches before you move is listening to a hidden wand.",
+      "On the rack of practice wands, one points slightly toward anyone telling a lie.",
+      "Lean close to the chalkboard—among the scribbles, a slender shadow murmurs back."
+    ]
+  },
+  "Common Room": {
+    "Cloak of Mist": [
+      "A chair near the fire is always warm, though no one is ever sitting there.",
+      "Find the spot where conversation fades and the air fogs for no reason.",
+      "The cloak hangs where footsteps vanish on the rug, leaving only a faint damp chill."
+    ]
+  },
+  "Astronomy Tower": {
+    "Starlight Compass": [
+      "Not all constellations are in the sky—one circles slowly on a forgotten brass lid.",
+      "Where maps of stars are pinned down, a small needle points somewhere between them.",
+      "The compass lies where the wind is weakest, yet its needle trembles at every falling star."
+    ],
+    "Time-Twined Hourglass": [
+      "Two streams of sand fall in opposite directions, though the glass is still.",
+      "At the railing where students lose track of time, something ticks without a clock.",
+      "The hourglass waits where old and new telescopes meet, freezing one reflection in the glass."
+    ]
+  },
+  "Headmaster’s Office": {
+    "Phoenix Feather": [
+      "Ashes in the coldest fireplace still glow faintly around a single unburnt plume.",
+      "Listen near the perch that stands empty—the soft rustle is not the curtains.",
+      "The feather rests where portraits look away, unwilling to watch it blaze again."
+    ]
+  }
+}
+
