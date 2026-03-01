@@ -9,7 +9,10 @@ class Player:
         self.hints_allowed = 0
         self.hints_used = 0
         self.is_imposter = False
+        # score shown to players, based only on artifacts found
         self.score = 0.0
+        # internal photo-based score used only for allocating hints
+        self.photo_score = 0.0
         self.photo_uploaded = False
         self.ready = False
         self.prompt_word = None
@@ -19,9 +22,12 @@ class Player:
             "name": self.name,
             "found": len(self.found),
             "hints_left": self.hints_allowed - self.hints_used,
+            "hints_used": self.hints_used,
+            "hints_allowed": self.hints_allowed,
             "ready": self.ready,
             "prompt_word": self.prompt_word,
             "score": self.score,
+            "imposter": self.is_imposter,
         }
 
 class Session:
@@ -35,6 +41,9 @@ class Session:
         self.imposter = None
         self.votes = {}
         self.N_PLAYERS = N_PLAYERS
+        # pending hint requests waiting for an imposter decision:
+        # pending_id -> {"requester": str, "room": str, "artifact": Optional[str], "clue": Optional[str]}
+        self.pending_hints = {}
 
     def to_dict(self):
         total_artifacts = len(self.artifact_manager.ARTIFACTS)
@@ -134,6 +143,46 @@ class GameManager:
         # create initial clues for artifacts (these are stored in artifact_manager)
         s.artifact_manager.generate_all_clues()
 
+    # --- Interactive hint flow: pending hints & imposter decisions ---
+
+    def start_pending_hint(self, session_id, requester, room):
+        """
+        Create and register a pending hint request for a given session.
+        This does NOT emit anything by itself; the caller is expected to
+        send a 'hint_prompt' event to the imposter.
+        """
+        s = self.sessions.get(session_id)
+        if not s:
+            return None
+        if requester not in s.players:
+            return None
+        pending_id = str(uuid.uuid4())
+        s.pending_hints[pending_id] = {
+            "requester": requester,
+            "room": room,
+            "artifact": None,
+            "clue": None,
+        }
+        return pending_id
+
+    def get_pending_hint(self, session_id, pending_id):
+        s = self.sessions.get(session_id)
+        if not s:
+            return None
+        return s.pending_hints.get(pending_id)
+
+    def resolve_pending_hint(self, session_id, pending_id):
+        """
+        Remove and return a pending hint entry. Returns None if not found.
+        """
+        s = self.sessions.get(session_id)
+        if not s:
+            return None
+        return s.pending_hints.pop(pending_id, None)
+        # initialize imposter manipulation/delay counters for this session
+        s.artifact_manager.manipulations_left.setdefault(s.session_id, 5)
+        s.artifact_manager.delays_used.setdefault(s.session_id, 0)
+
     def start_timer(self, session_id, socketio):
         """Begin the shared 12-minute countdown once all photos are scored."""
         s = self.sessions.get(session_id)
@@ -156,7 +205,7 @@ class GameManager:
         results = self.end_game(session_id)
         socketio.emit("game_over", results, room=session_id)
 
-    def request_hint(self, session_id, username, socketio):
+    def request_hint(self, session_id, username, room, socketio):
         s = self.sessions.get(session_id)
         if not s:
             return None
@@ -168,9 +217,17 @@ class GameManager:
             return None
         if player.hints_used >= player.hints_allowed:
             return None
-        # get an artifact hint from artifact manager (this will handle impostor manipulation)
-        hint = s.artifact_manager.provide_hint(session_id, username, socketio, s.imposter, s.players)
-        player.hints_used += 1
+        # get a room-aware artifact hint from artifact manager
+        hint = None
+        if room:
+            hint = s.artifact_manager.provide_room_hint(session_id, room, s.players)
+        if hint is None:
+            # fallback to legacy behaviour if no room-specific hint is available
+            hint = s.artifact_manager.provide_hint(session_id, username, socketio, s.imposter, s.players)
+        # Only consume a hint from the player's quota if we actually produced
+        # a clue for them.
+        if hint is not None:
+            player.hints_used += 1
         return hint
 
     def submit_artifact(self, session_id, username, artifact_id):
@@ -189,6 +246,7 @@ class GameManager:
             return {
                 "ok": True,
                 "message": "claimed",
+                "artifact_id": artifact_id,
                 "artifacts_remaining": remaining,
                 "score": player.score,
             }
@@ -243,7 +301,9 @@ class GameManager:
         p = s.players.get(username)
         if not p:
             return None
-        p.score = float(score or 0.0)
+        # keep game score at 0 until artifacts are found; use a separate
+        # photo_score for hint allocation.
+        p.photo_score = float(score or 0.0)
         p.photo_uploaded = True
         # when all players have uploaded, allocate hint quotas
         if len(s.players) == self.N_PLAYERS and all(pl.photo_uploaded for pl in s.players.values()):
@@ -259,7 +319,7 @@ class GameManager:
         imposter = session.players.get(session.imposter) if session.imposter else None
         non_imposters = [p for p in players if not p.is_imposter]
         # Sort non-imposters by photo score (high to low)
-        non_imposters_sorted = sorted(non_imposters, key=lambda p: p.score, reverse=True)
+        non_imposters_sorted = sorted(non_imposters, key=lambda p: p.photo_score, reverse=True)
         for p, q in zip(non_imposters_sorted, quotas):
             p.hints_allowed = q
         # Imposter gets zero hints

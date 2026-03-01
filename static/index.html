@@ -780,7 +780,21 @@
     .timer-warning {
       color: var(--danger);
     }
-  </style>
+  
+/* hint room badge */
+.hint-room {
+  display: inline-block;
+  margin-top: 6px;
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--accent-soft);
+  border: 1px solid rgba(148,163,184,0.08);
+}
+
+</style>
 </head>
 <body>
   <div class="app-shell">
@@ -1339,12 +1353,17 @@ socket.on('hint_response', (d) => {
   text.className = 'hint-text';
   text.textContent = d.clue || '';
 
+  const roomEl = document.createElement('div');
+  roomEl.className = 'hint-room';
+  roomEl.textContent = d.room ? d.room : 'Unknown room';
+
   const meta = document.createElement('div');
   meta.className = 'hint-meta';
   meta.textContent = 'Hint channel · beware of illusions';
 
   card.appendChild(art);
   card.appendChild(text);
+  card.appendChild(roomEl);
   card.appendChild(meta);
 
   hintsEl.prepend(card);
