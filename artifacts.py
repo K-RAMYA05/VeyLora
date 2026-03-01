@@ -11,6 +11,8 @@ class ArtifactManager:
         self.artifact_locations = {}  # artifact -> room
         self.artifact_clues = {}      # artifact -> [clue1, clue2, clue3]
         self.claimed = set()
+        # room -> [artifact names in order]
+        self.room_artifacts_order = {}
         # manipulation tracking per session
         self.manipulations_left = {}  # session_id -> remaining manipulations by imposter
         self.delays_used = {}         # session_id -> delay uses count
@@ -58,6 +60,8 @@ class ArtifactManager:
                 with open(hints_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 for room_name, artifacts in data.items():
+                    # preserve artifact order per room
+                    self.room_artifacts_order[room_name] = list(artifacts.keys())
                     for art, clues in artifacts.items():
                         if isinstance(clues, list) and clues:
                             self.artifact_clues[art] = list(clues)
@@ -70,8 +74,20 @@ class ArtifactManager:
         for a, room in self.artifact_locations.items():
             self.artifact_clues[a] = [self.generate_clue_for(a, room, i) for i in range(1,4)]
 
+    def get_next_clue(self, artifact):
+        """Peek the next clue without consuming it."""
+        return (self.artifact_clues.get(artifact) or [None])[0]
+
+    def consume_clue(self, artifact):
+        """Consume and return the next clue for an artifact."""
+        clues = self.artifact_clues.get(artifact, [])
+        if not clues:
+            return None
+        return clues.pop(0)
+
+
     def provide_hint(self, session_id, username, socketio, imposter_name, players):
-        # pick a random unrevealed artifact and return next unused clue
+        # legacy path: random artifact / clue (kept for compatibility if needed)
         available = [a for a in self.ARTIFACTS if a not in self.claimed]
         if not available:
             return None
@@ -79,51 +95,35 @@ class ArtifactManager:
         clues = self.artifact_clues.get(artifact, [])
         if not clues:
             return None
-        # pop one clue to simulate consumption
         clue = clues.pop(0)
-
-        # find requester sid and imposter sid
-        requester_sid = None
-        imposter_sid = None
-        for p in players.values():
-            if p.name == username:
-                requester_sid = p.sid
-            if p.is_imposter:
-                imposter_sid = p.sid
-
-        # Initialize per-session manipulation/delay budgets (5 each)
-        self.manipulations_left.setdefault(session_id, 5)
-        self.delays_used.setdefault(session_id, 0)
-
-        def emit_hint(payload, target_sid):
-            if target_sid:
-                socketio.emit("hint_response", payload, room=target_sid)
-            else:
-                socketio.emit("hint_response", payload, room=session_id)
-
-        payload = {"artifact": artifact, "clue": clue}
-
-        # If we still have manipulation budget, make the clue harder once
-        if self.manipulations_left[session_id] > 0:
-            twisted = "A misleading whisper: " + "".join(
-                reversed(clue.split(" ", 1)[-1])
-            )
-            payload = {"artifact": artifact, "clue": twisted}
-            self.manipulations_left[session_id] -= 1
-            emit_hint(payload, requester_sid)
-        # Otherwise, if we still have delay budget, delay the hint by ~20s
-        elif self.delays_used[session_id] < 5:
-            self.delays_used[session_id] += 1
-
-            def delayed():
-                time.sleep(20)
-                emit_hint(payload, requester_sid)
-
-            threading.Thread(target=delayed, daemon=True).start()
-        else:
-            emit_hint(payload, requester_sid)
-
         return {"artifact": artifact, "clue": clue}
+
+    def provide_room_hint(self, session_id, room, players):
+        """
+        Room-aware hint selection:
+        - Use artifact_hints.json order for artifacts in that room.
+        - Skip artifacts that are already claimed.
+        - For each artifact in order:
+            * Serve its 3 hints in sequence (1, then 2, then 3).
+            * Once an artifact has no clues left, move on to the next artifact in that room,
+              even if the first one was never found.
+        - When all clues for all artifacts in this room are exhausted, return None.
+        """
+        order = self.room_artifacts_order.get(room)
+        if not order:
+            return None
+        # iterate in configured order and find the first artifact that:
+        #   - is not yet claimed
+        #   - still has at least one remaining clue
+        for artifact in order:
+            if artifact in self.claimed:
+                continue
+            clues = self.artifact_clues.get(artifact, [])
+            if clues:
+                clue = clues.pop(0)
+                return {"artifact": artifact, "clue": clue}
+        # no artifact in this room has clues left
+        return None
 
     def claim_artifact(self, artifact_id, username):
         if artifact_id not in self.ARTIFACTS:

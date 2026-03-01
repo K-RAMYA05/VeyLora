@@ -41,9 +41,9 @@
     .world-frame {
       position: relative;
       
-      width: 85vw !important;
-      height: 95vh;
-      max-height: 90vh;
+      width: 73vw !important;
+      height: 100vh;
+      max-height: 95vh;
       border-radius: 26px;
       overflow: hidden;
       box-shadow: 0 26px 70px rgba(0,0,0,0.95), 0 0 0 2px rgba(250,204,21,0.9);
@@ -259,7 +259,7 @@
     }
 
     .room-modal {
-      max-width: 70vw;
+      max-width: 42vw;
       max-height: 70vh;
       border-radius: 20px;
       padding: 12px 12px 14px;
@@ -311,6 +311,37 @@
       font-size: 12px;
       color: var(--text-muted);
     }
+
+    .room-image-wrapper {
+      position: relative;
+    }
+
+    .artifact-hotspot {
+      position: absolute;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .room-hint-button {
+      margin-top: 6px;
+      align-self: flex-start;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: linear-gradient(135deg, #ffca5c, #f7a600);
+      color: #111827;
+      box-shadow: 0 10px 24px rgba(251,191,36,0.7);
+    }
+
+    .room-hint-button:hover {
+      box-shadow: 0 16px 32px rgba(251,191,36,0.9);
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
@@ -346,7 +377,8 @@
   <div class="hint-hud">
     <span class="hint-hud-label">Your hints</span>
     <span class="hint-hud-status" id="worldHintHelper">Loading…</span>
-    <button id="btnRequestHint" type="button">Request hint</button>
+    <button id="btnManipulate" type="button" style="display:none;">Manipulate (5)</button>
+    <button id="btnDelay" type="button" style="display:none;">Delay (5)</button>
   </div>
   <div class="room-modal-overlay" id="roomModal">
     <div class="room-modal">
@@ -354,9 +386,15 @@
         <div class="room-modal-title" id="roomTitle">Room</div>
         <button class="room-modal-close" id="roomClose" aria-label="Close room view">×</button>
       </div>
-      <img id="roomImage" class="room-image" alt="Selected room view"/>
-      <div class="room-caption" id="roomCaption">
+      <div class="room-image-wrapper">
+        <img id="roomImage" class="room-image" alt="Selected room view"/>
+        <!-- Two generic hotspots; configured per room via JS -->
+        <button class="artifact-hotspot" id="artifactHotspot1" data-artifact="" style="display:none;"></button>
+        <button class="artifact-hotspot" id="artifactHotspot2" data-artifact="" style="display:none;"></button>
       </div>
+      <div class="room-caption" id="roomCaption"></div>
+      <div id="hints" style="max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+      <button id="btnRequestHint" type="button" class="room-hint-button">Request hint</button>
     </div>
   </div>
   <!-- sidebar removed; using compact hint HUD instead -->
@@ -368,12 +406,16 @@
     const helperEl = document.getElementById('worldHintHelper');
     const hintsEl = document.getElementById('hints');
     const btnHint = document.getElementById('btnRequestHint');
+    const btnManipulate = document.getElementById('btnManipulate');
+    const btnDelay = document.getElementById('btnDelay');
     const timerLabelEl = document.getElementById('worldTimer');
     const roomModalEl = document.getElementById('roomModal');
     const roomImageEl = document.getElementById('roomImage');
     const roomTitleEl = document.getElementById('roomTitle');
     const roomCaptionEl = document.getElementById('roomCaption');
     const roomCloseBtn = document.getElementById('roomClose');
+    const hotspot1 = document.getElementById('artifactHotspot1');
+    const hotspot2 = document.getElementById('artifactHotspot2');
 
     const socket = io();
     const my = { session: sessionId, name: username };
@@ -381,19 +423,142 @@
     let hintsLeft = 0;
     let hintsUsed = 0;
     let artifactsLeft = null;
+    // visible game score: starts at 0 and only changes when artifacts are found
     let myScore = 0;
+    let isImposter = false;
+    let manipLeft = 5;
+    let delayLeft = 5;
+    let currentRoom = null;
+    let baseHintQuota = null; // initial total hints for this player
+
+    const ROOM_ARTIFACTS = {
+      'Great Hall': ['Goblet of Echoes', 'Singing Chalice'],
+      'Potions Classroom': ['Dragon Scale', 'Moonstone Amulet'],
+      'Library': ['Elder Grimoire', 'Spellbound Quill'],
+      'Herbology Greenhouse': ['Runed Lantern'],
+      'Defense Classroom': ['Wand of Whisper'],
+      'Common Room': ['Cloak of Mist'],
+      'Astronomy Tower': ['Starlight Compass', 'Time-Twined Hourglass'],
+      "Headmaster's Office": ['Phoenix Feather']
+    };
+
+    // Rough hotspot positions for each room image (percentages over the room image)
+    const ROOM_HOTSPOT_POS = {
+      'Great Hall': [
+        { left: '46%', top: '71%', width: '6%', height: '12%' }, // Goblet of Echoes
+        { left: '54%', top: '74%', width: '6%', height: '12%' }  // Singing Chalice
+      ],
+      'Potions Classroom': [
+        { left: '40%', top: '55%', width: '8%', height: '14%' }, // Dragon Scale
+        { left: '58%', top: '40%', width: '8%', height: '14%' }  // Moonstone Amulet
+      ],
+      'Library': [
+        { left: '30%', top: '50%', width: '10%', height: '20%' }, // Elder Grimoire
+        { left: '60%', top: '45%', width: '8%', height: '16%' }   // Spellbound Quill
+      ],
+      'Herbology Greenhouse': [
+        { left: '50%', top: '55%', width: '10%', height: '18%' }  // Runed Lantern
+      ],
+      'Defense Classroom': [
+        { left: '55%', top: '60%', width: '8%', height: '18%' }   // Wand of Whisper
+      ],
+      'Common Room': [
+        { left: '50%', top: '65%', width: '12%', height: '20%' }  // Cloak of Mist
+      ],
+      'Astronomy Tower': [
+        { left: '45%', top: '40%', width: '10%', height: '18%' }, // Starlight Compass
+        { left: '60%', top: '55%', width: '10%', height: '18%' }  // Time-Twined Hourglass
+      ],
+      "Headmaster's Office": [
+        { left: '55%', top: '40%', width: '10%', height: '18%' }  // Phoenix Feather
+      ]
+    };
+
+    function configureRoomHotspots(roomName) {
+      if (!hotspot1 || !hotspot2) return;
+      const artifacts = ROOM_ARTIFACTS[roomName] || [];
+      const positions = ROOM_HOTSPOT_POS[roomName] || [];
+
+      const hotspots = [hotspot1, hotspot2];
+      hotspots.forEach((btn, idx) => {
+        const art = artifacts[idx];
+        const pos = positions[idx];
+        if (art && pos) {
+          btn.style.display = 'block';
+          btn.dataset.artifact = art;
+          btn.style.left = pos.left;
+          btn.style.top = pos.top;
+          btn.style.width = pos.width;
+          btn.style.height = pos.height;
+        } else {
+          btn.style.display = 'none';
+          btn.dataset.artifact = '';
+        }
+      });
+    }
 
     function updateHintHelperText() {
       if (!helperEl) return;
-      if (hintsLeft <= 0 && hintsUsed === 0) {
+      if (isImposter) {
         helperEl.textContent = 'You are the imposter. You have no hints, but you can subtly twist the clues others receive.';
-        if (btnHint) btnHint.disabled = true;
-      } else if (hintsLeft <= 0) {
-        helperEl.textContent = `Hints left: 0 · Used: ${hintsUsed}`;
-        if (btnHint) btnHint.disabled = true;
+        if (btnHint) btnHint.style.display = 'none';
+        if (btnManipulate) {
+          btnManipulate.style.display = 'inline-block';
+          btnManipulate.textContent = `Manipulate (${manipLeft})`;
+        }
+        if (btnDelay) {
+          btnDelay.style.display = 'inline-block';
+          btnDelay.textContent = `Delay (${delayLeft})`;
+        }
       } else {
-        helperEl.textContent = `Hints left: ${hintsLeft} · Used: ${hintsUsed}` + (artifactsLeft !== null ? ` · Artifacts left: ${artifactsLeft} · Score: ${myScore}` : '');
-        if (btnHint) btnHint.disabled = false;
+        const effectiveUsed =
+          baseHintQuota !== null ? Math.max(0, baseHintQuota - hintsLeft) : hintsUsed;
+        const baseStatus = `Hints left: ${hintsLeft} · Used: ${effectiveUsed}`;
+        const displayScore = Math.round(myScore || 0);
+        const extra = artifactsLeft !== null ? ` · Artifacts left: ${artifactsLeft} · Score: ${displayScore}` : '';
+        helperEl.textContent = baseStatus + extra;
+        if (btnHint) {
+          btnHint.style.display = 'inline-block';
+          btnHint.disabled = hintsLeft <= 0;
+        }
+        if (btnManipulate) btnManipulate.style.display = 'none';
+        if (btnDelay) btnDelay.style.display = 'none';
+      }
+    }
+
+    function syncStateFromStatus(data) {
+      if (!data) return;
+      const players = data.players || [];
+      const me = players.find(p => p.name === username);
+      if (typeof data.artifacts_total === 'number' && typeof data.artifacts_claimed === 'number') {
+        artifactsLeft = Math.max(0, data.artifacts_total - data.artifacts_claimed);
+      }
+      if (me) {
+        if (typeof me.imposter === 'boolean') {
+          isImposter = me.imposter;
+        } else {
+          // fall back: treat zero-hint-at-start as imposter
+          isImposter = (me.hints_left || 0) === 0;
+        }
+        // use backend game score (artifacts found only)
+        if (typeof me.score === 'number') {
+          myScore = me.score;
+        }
+        if (typeof me.hints_allowed === 'number' && baseHintQuota === null) {
+          baseHintQuota = me.hints_allowed;
+        }
+        if (typeof me.hints_left === 'number') {
+          hintsLeft = me.hints_left;
+        }
+        // derive hints used from quota and left if possible
+        if (baseHintQuota !== null && typeof me.hints_left === 'number') {
+          hintsUsed = Math.max(0, baseHintQuota - me.hints_left);
+        } else if (typeof me.hints_used === 'number') {
+          hintsUsed = me.hints_used;
+        }
+        updateHintHelperText();
+      } else if (helperEl) {
+        helperEl.textContent = 'You are in the realm as an observer.';
       }
     }
 
@@ -404,27 +569,7 @@
       }
       fetch(`/status/${encodeURIComponent(sessionId)}`)
         .then(r => r.json())
-        .then(data => {
-          const players = data.players || [];
-          const me = players.find(p => p.name === username);
-          if (typeof data.artifacts_total === 'number' && typeof data.artifacts_claimed === 'number') {
-            artifactsLeft = Math.max(0, data.artifacts_total - data.artifacts_claimed);
-          }
-          if (me) {
-            if (typeof me.score === 'number') {
-              myScore = me.score;
-            }
-            if (typeof me.hints_left === 'number') {
-              hintsLeft = me.hints_left;
-              hintsUsed = 0;
-              updateHintHelperText();
-            } else if (helperEl) {
-              helperEl.textContent = 'Your role is ready — hints are now active.';
-            }
-          } else if (helperEl) {
-            helperEl.textContent = 'You are in the realm as an observer.';
-          }
-        })
+        .then(syncStateFromStatus)
         .catch(() => {
           if (helperEl) helperEl.textContent = 'Unable to load session state.';
         });
@@ -464,10 +609,12 @@
         if (!hotspot) return;
         const room = hotspot.getAttribute('data-room') || 'Unknown room';
         const id = hotspot.getAttribute('data-id');
+        currentRoom = room;
         if (roomModalEl && roomImageEl && roomTitleEl && roomCaptionEl && id) {
           roomImageEl.src = '/image/rooms/' + String(id) + '.png';
           roomTitleEl.textContent = room;
           roomCaptionEl.textContent = ROOM_CAPTIONS[room] || 'A mysterious chamber where artifacts may lurk in the shadows.';
+          configureRoomHotspots(room);
           roomModalEl.style.display = 'flex';
           playRoomClickSound();
           worldFrameEl.classList.add('world-shake');
@@ -479,7 +626,38 @@
     if (roomCloseBtn && roomModalEl) {
       roomCloseBtn.onclick = () => {
         roomModalEl.style.display = 'none';
+        // When leaving a room, refresh hint counts and artifacts/score
+        // from the server so HUD is always correct.
+        if (sessionId) {
+          fetch(`/status/${encodeURIComponent(sessionId)}`)
+            .then(r => r.json())
+            .then(syncStateFromStatus)
+            .catch(() => {});
+        }
       };
+    }
+
+    // Clicking artifact hotspots submits the corresponding artifact id.
+    function submitArtifactFromHotspot(btn) {
+      if (!btn) return;
+      const artifactId = btn.dataset.artifact;
+      if (!artifactId) return;
+      if (!my.session || !my.name) {
+        alert('Join a session first.');
+        return;
+      }
+      socket.emit('submit_artifact', {
+        session_id: my.session,
+        username: my.name,
+        artifact_id: artifactId
+      });
+    }
+
+    if (hotspot1) {
+      hotspot1.addEventListener('click', () => submitArtifactFromHotspot(hotspot1));
+    }
+    if (hotspot2) {
+      hotspot2.addEventListener('click', () => submitArtifactFromHotspot(hotspot2));
     }
 
     // Join the world view room so we receive hint responses and time updates.
@@ -497,7 +675,11 @@
           alert('Missing session or name in URL.');
           return;
         }
-        socket.emit('request_hint', { session_id: my.session, username: my.name });
+        if (!currentRoom) {
+          alert('Step into a room on the map before requesting a hint.');
+          return;
+        }
+        socket.emit('request_hint', { session_id: my.session, username: my.name, room: currentRoom });
       };
     }
 
@@ -505,6 +687,10 @@
       if (d.error) {
         alert('Hint error: ' + d.error);
         return;
+      }
+      // Surface the clue immediately to the player.
+      if (d.clue) {
+        alert(d.clue);
       }
       const card = document.createElement('div');
       card.style.borderRadius = '10px';
@@ -539,12 +725,22 @@
       card.appendChild(text);
       card.appendChild(meta);
 
-      hintsEl.prepend(card);
+      if (hintsEl) {
+        hintsEl.prepend(card);
+      }
+      // Optimistically update, then resync from server
       hintsUsed += 1;
       if (hintsLeft > 0) {
         hintsLeft -= 1;
       }
       updateHintHelperText();
+
+      if (sessionId) {
+        fetch(`/status/${encodeURIComponent(sessionId)}`)
+          .then(r => r.json())
+          .then(syncStateFromStatus)
+          .catch(() => {});
+      }
     });
 
     let localSeconds = null;
@@ -588,6 +784,33 @@
         myScore = res.score;
       }
       updateHintHelperText();
+    });
+
+    socket.on('artifact_update', (d) => {
+      if (!d || !d.result) return;
+      const res = d.result;
+      if (typeof res.artifacts_remaining === 'number') {
+        artifactsLeft = res.artifacts_remaining;
+      }
+      if (d.username === username && typeof res.score === 'number') {
+        myScore = res.score;
+      }
+      // If this artifact was claimed, hide any matching hotspot so no one
+      // can click it again.
+      const claimedId = res.artifact_id;
+      if (claimedId) {
+        [hotspot1, hotspot2].forEach(btn => {
+          if (!btn) return;
+          if (btn.dataset.artifact === claimedId) {
+            btn.style.display = 'none';
+            btn.dataset.artifact = '';
+          }
+        });
+      }
+      updateHintHelperText();
+      if (res.ok && d.username === username) {
+        alert('You found an artifact!');
+      }
     });
 
     socket.on('game_over', (d) => {
