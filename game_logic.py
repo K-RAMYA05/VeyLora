@@ -222,6 +222,21 @@ class GameManager:
             return None
         return s.pending_hints.get(pending_id)
 
+    def first_pending_for_imposter(self, session_id):
+        """
+        Return the first pending hint entry for this session without
+        removing it, augmented with its pending_id. Used by the
+        imposter's HTTP polling fallback.
+        """
+        s = self.sessions.get(session_id)
+        if not s:
+            return None
+        for pid, entry in s.pending_hints.items():
+            out = dict(entry)
+            out["pending_id"] = pid
+            return out
+        return None
+
     def resolve_pending_hint(self, session_id, pending_id):
         """
         Remove and return a pending hint entry. Returns None if not found.
@@ -271,11 +286,13 @@ class GameManager:
         if player.hints_used >= player.hints_allowed:
             return None
         # get a room-aware artifact hint from artifact manager
-        hint = None
         if room:
+            # Room-specific flow: only serve clues tied to artifacts
+            # in this chamber. If no hint is available, return None so
+            # the caller can report "no more hints for this room".
             hint = s.artifact_manager.provide_room_hint(session_id, room, s.players)
-        if hint is None:
-            # fallback to legacy behaviour if no room-specific hint is available
+        else:
+            # Legacy / non-room-aware path
             hint = s.artifact_manager.provide_hint(session_id, username, socketio, s.imposter, s.players)
         # Only consume a hint from the player's quota if we actually produced
         # a clue for them.

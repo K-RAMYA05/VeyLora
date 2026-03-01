@@ -40,7 +40,6 @@
     }
     .world-frame {
       position: relative;
-      
       width: 73vw !important;
       height: 100vh;
       max-height: 95vh;
@@ -48,12 +47,10 @@
       overflow: hidden;
       box-shadow: 0 26px 70px rgba(0,0,0,0.95), 0 0 0 2px rgba(250,204,21,0.9);
       background-image: url("/image/fantasy_world.jpeg");
-      
-      
       background-repeat: no-repeat;
       background-position: top center;
       filter: brightness(1.15) saturate(1.2);
-      animation: worldFloat 36s ease-in-out infinite alternate;
+      /* image stays static; no slow zoom/float animation */
     }
     .world-frame.locked {
       filter: grayscale(0.4) brightness(0.8);
@@ -535,14 +532,14 @@
       position: fixed;
       left: 18px;
       top: 18px;
-      padding: 8px 10px 10px;
-      border-radius: 12px;
+      padding: 6px 9px 8px;
+      border-radius: 10px;
       border: 1px solid rgba(148,163,184,0.65);
       background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(17,24,39,0.95));
       font-size: 11px;
       color: var(--text-main);
       box-shadow: 0 14px 30px rgba(0,0,0,0.75);
-      max-width: 190px;
+      max-width: 180px;
       z-index: 2;
     }
     .world-players-title {
@@ -559,6 +556,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
+      margin-bottom: 6px;
     }
     .world-players-list li {
       margin: 0;
@@ -570,45 +568,34 @@
       font-size: 10px;
     }
 
-    .imposter-guess {
-      position: fixed;
-      left: 18px;
-      top: 96px;
-      padding: 8px 10px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(250,204,21,0.7);
-      background: radial-gradient(circle at top, rgba(30,64,175,0.96), rgba(17,24,39,0.96));
-      font-size: 11px;
-      color: var(--text-main);
-      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
-      max-width: 220px;
-      z-index: 2;
+    .imposter-guess-inner {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(55,65,81,0.85);
     }
     .imposter-guess-title {
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.14em;
       color: #facc15;
       margin-bottom: 4px;
-    }
-    .imposter-guess-row {
-      display: flex;
-      gap: 4px;
-      margin-top: 4px;
+      font-size: 10px;
     }
     #guessImposterName {
-      flex: 1;
+      width: 100%;
       border-radius: 8px;
       border: 1px solid rgba(148,163,184,0.6);
       background: rgba(15,23,42,0.9);
       color: var(--text-main);
       padding: 3px 6px;
       font-size: 11px;
+      margin-bottom: 4px;
     }
     #btnSubmitGuess {
+      width: 100%;
       border: none;
       border-radius: 8px;
-      padding: 3px 8px;
+      padding: 4px 8px;
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.12em;
@@ -661,14 +648,12 @@
   <div class="world-players" id="worldPlayers" style="display:none;">
     <div class="world-players-title">Players</div>
     <ul class="world-players-list" id="worldPlayersList"></ul>
-  </div>
-  <div class="imposter-guess" id="imposterGuessBox" style="display:none;">
-    <div class="imposter-guess-title">Guess imposter</div>
-    <div class="imposter-guess-row">
+    <div class="imposter-guess-inner" id="imposterGuessBox" style="display:none;">
+      <div class="imposter-guess-title">Guess imposter</div>
       <input id="guessImposterName" type="text" autocomplete="off" placeholder="Type a name" />
       <button id="btnSubmitGuess" type="button">Guess</button>
+      <div id="guessStatus"></div>
     </div>
-    <div id="guessStatus"></div>
   </div>
   <div class="imposter-overlay" id="imposterHintOverlay">
     <div class="imposter-card">
@@ -750,7 +735,7 @@
     // visible game score: starts at 0 and only changes when artifacts are found
     let myScore = 0;
     let isImposter = false;
-    let manipLeft = 5;
+    let manipLeft = 10;
     let delayLeft = 0;
     let currentRoom = null;
     let baseHintQuota = null; // initial total hints for this player
@@ -759,6 +744,8 @@
     let pendingImposterHint = null;
     let registeredWorldName = null;
     const roomHints = {};
+    let imposterPollTimer = null;
+    let lastPolledPendingId = null;
 
     const ROOM_ARTIFACTS = {
       'Great Hall': ['Goblet of Echoes', 'Singing Chalice'],
@@ -1075,6 +1062,27 @@
         updateMapInteractivity();
         if (guessBoxEl) {
           guessBoxEl.style.display = isImposter ? 'none' : 'block';
+        }
+        // Start a lightweight HTTP polling fallback on the imposter
+        // view so pending hints are not missed even if the Socket.IO
+        // event is dropped.
+        if (isImposter && !imposterPollTimer && sessionId && my.name) {
+          imposterPollTimer = setInterval(() => {
+            fetch(`/pending_hint?session_id=${encodeURIComponent(sessionId)}&username=${encodeURIComponent(my.name)}`)
+              .then(r => r.ok ? r.json() : {})
+              .then(payload => {
+                if (!payload || !payload.pending_id) return;
+                if (pendingImposterHint && pendingImposterHint.pending_id === payload.pending_id) return;
+                if (lastPolledPendingId === payload.pending_id) return;
+                lastPolledPendingId = payload.pending_id;
+                if (typeof payload.manipulations_left === 'number') {
+                  manipLeft = payload.manipulations_left;
+                  updateHintHelperText();
+                }
+                showImposterPrompt(payload);
+              })
+              .catch(() => {});
+          }, 2000);
         }
       } else if (helperEl) {
         helperEl.textContent = 'You are in the realm as an observer.';

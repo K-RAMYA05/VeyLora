@@ -65,7 +65,11 @@ def _queue_hint_request(session_id, username, room, requester_sid=None):
         "manipulations_left": manips_left,
         "imposter": imposter_name,
     }
+    # Send to the session room so all world views in this session see it…
     socketio.emit("hint_prompt", prompt_payload, room=session_id)
+    # …and also broadcast to the namespace as a safety net so the
+    # imposter's tab receives it even if it missed the room join.
+    socketio.emit("hint_prompt", prompt_payload)
 
 @app.route("/")
 def index():
@@ -89,6 +93,37 @@ def status(session_id):
     if not s:
         return jsonify({"error":"not found"}), 404
     return jsonify(s.to_dict())
+
+@app.route("/pending_hint", methods=["GET"])
+def pending_hint():
+    """
+    HTTP fallback for the imposter: returns the first pending hint
+    for this session so the imposter overlay can poll even if the
+    real-time Socket.IO event was missed.
+    """
+    session_id = request.args.get("session_id")
+    username = request.args.get("username")
+    if not session_id or not username:
+        return jsonify({"error": "session_id and username required"}), 400
+    s = manager.get_session(session_id)
+    if not s:
+        return jsonify({"error": "session not found"}), 404
+    if username != s.imposter:
+        return jsonify({"error": "only the imposter can view pending hints"}), 403
+    entry = manager.first_pending_for_imposter(session_id)
+    if not entry:
+        return jsonify({})
+    payload = {
+        "pending_id": entry.get("pending_id"),
+        "session_id": session_id,
+        "requester": entry.get("requester"),
+        "room": entry.get("room"),
+        "artifact": entry.get("artifact"),
+        "base_clue": entry.get("clue"),
+        "manipulations_left": getattr(s, "manipulations_left", 10),
+        "imposter": s.imposter,
+    }
+    return jsonify(payload)
 
 # SocketIO events
 @socketio.on("join_session")
