@@ -13,6 +13,60 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 manager = GameManager()
 
+def _emit_hint_error(message, target_sid):
+    """Utility to send a hint error to a specific client."""
+    socketio.emit("hint_response", {"error": message}, room=target_sid)
+
+def _queue_hint_request(session_id, username, room, requester_sid=None):
+    """Generate a hint and route it through the imposter for optional manipulation."""
+    if requester_sid is None:
+        requester_sid = request.sid
+    if not room:
+        _emit_hint_error("You must be inside a room to request a hint.", requester_sid)
+        return
+    s = manager.get_session(session_id)
+    if not s:
+        _emit_hint_error("Session not found.", requester_sid)
+        return
+    player = s.players.get(username)
+    if not player:
+        _emit_hint_error("Player not registered in this session.", requester_sid)
+        return
+
+    # Generate a hint for this requester/room.
+    hint = manager.request_hint(session_id, username, room, socketio)
+    if hint is None:
+        _emit_hint_error("No hints available for this room or you have no hints left.", requester_sid)
+        return
+    hint.setdefault("room", room)
+
+    # If there is no imposter for some reason, deliver the hint directly.
+    imposter_name = s.imposter
+    if not imposter_name:
+        final_payload = dict(hint)
+        final_payload["requester"] = username
+        socketio.emit("hint_response", final_payload, room=session_id)
+        return
+
+    # Create a pending entry and broadcast a prompt. Clients will filter so
+    # only the imposter sees the prompt UI.
+    pending_id = manager.start_pending_hint(session_id, username, room, hint)
+    if not pending_id:
+        _emit_hint_error("Unable to queue this hint request.", requester_sid)
+        return
+    manips_left = getattr(s, "manipulations_left", 10)
+    prompt_payload = {
+        "pending_id": pending_id,
+        "session_id": session_id,
+        "requester": username,
+        "room": room,
+        "artifact": hint.get("artifact"),
+        "base_clue": hint.get("clue"),
+        "manipulations_left": manips_left,
+        "imposter": imposter_name,
+    }
+    socketio.emit("hint_prompt", prompt_payload, room=session_id)
+
 @app.route("/")
 def index():
     return send_from_directory('static', 'index.html')
@@ -58,13 +112,7 @@ def on_hint(data):
     if not room:
         emit("hint_response", {"error": "You must be inside a room to request a hint."})
         return
-    hint = manager.request_hint(session_id, username, room, socketio)
-    if hint is None:
-        emit("hint_response", {"error":"No hints left, no clues for this room, or session not found"})
-    else:
-        # For now, emit the hint directly back to the requester.
-        # Interactive imposter manipulation/delay will be layered on top later.
-        emit("hint_response", hint)
+    _queue_hint_request(session_id, username, room, requester_sid=request.sid)
 
 @socketio.on("submit_artifact")
 def on_submit(data):
@@ -145,10 +193,9 @@ def upload_photo():
             {"players": players},
             room=session_id,
         )
-        # All five players have uploaded and been scored:
-        # - hint quotas have been allocated
-        # - now start the shared 12-minute timer
-        manager.start_timer(session_id, socketio)
+        # All five players have uploaded and been scored and hint quotas allocated.
+        # The actual game countdown will start only after everyone loads the
+        # fantasy_world view (handled in the join_world_view handler).
         result["hints_assigned"] = True
     else:
         result["hints_assigned"] = False
@@ -174,13 +221,7 @@ def on_player_ready(data):
 
 @socketio.on("request_hint_interactive")
 def on_request_hint_interactive(data):
-    """
-    New interactive hint flow entry point.
-    Non‑imposter players call this with: session_id, username, room.
-    The server creates a pending hint entry and notifies the imposter
-    via a 'hint_prompt' event. The final hint will be sent only after
-    the imposter replies with 'imposter_hint_action'.
-    """
+    """Alias for the standard hint request flow that routes via the imposter."""
     session_id = data.get("session_id")
     username = data.get("username")
     room = data.get("room")
@@ -188,54 +229,21 @@ def on_request_hint_interactive(data):
         emit("hint_response", {"error": "session_id, username and room are required"})
         return
 
-    s = manager.get_session(session_id)
-    if not s:
-        emit("hint_response", {"error": "session not found"})
-        return
-    player = s.players.get(username)
-    if not player:
-        emit("hint_response", {"error": "player not in session"})
-        return
-    if player.is_imposter:
-        emit("hint_response", {"error": "imposter cannot request hints"})
-        return
-
-    pending_id = manager.start_pending_hint(session_id, username, room)
-    if not pending_id:
-        emit("hint_response", {"error": "could not start hint request"})
-        return
-
-    # For now, we do not attach artifact/clue here – those will be populated
-    # in a later step when we wire room-aware hint selection. We already
-    # notify the imposter that someone requested a hint.
-    imposter_name = s.imposter
-    imposter_player = s.players.get(imposter_name) if imposter_name else None
-    prompt_payload = {
-        "pending_id": pending_id,
-        "session_id": session_id,
-        "requester": username,
-        "room": room,
-        "artifact": None,
-        "base_clue": None,
-    }
-    if imposter_player:
-        socketio.emit("hint_prompt", prompt_payload, room=imposter_player.sid)
-    else:
-        # No imposter (should not happen), fallback: tell requester no hint
-        emit("hint_response", {"error": "no imposter available for hint approval"})
+    _queue_hint_request(session_id, username, room, requester_sid=request.sid)
 
 @socketio.on("imposter_hint_action")
 def on_imposter_hint_action(data):
     """
     Imposter's response to a hint prompt.
-    Carries: session_id, pending_id, action ('pass' | 'manipulate' | 'delay'),
-    and optional 'clue' override. This handler only validates and clears the
-    pending entry for now; the full emission logic will be wired in a later step.
+    Carries: session_id, pending_id, action ('pass' | 'manipulate'),
+    and optional 'clue' override. Applies the requested action, delivers the
+    final hint to the requesting player, and updates manipulation counters.
     """
     session_id = data.get("session_id")
     pending_id = data.get("pending_id")
     action = data.get("action")
     override_clue = data.get("clue")
+    username = data.get("username")
 
     if not session_id or not pending_id or not action:
         emit("error", {"msg": "session_id, pending_id and action are required"})
@@ -246,37 +254,110 @@ def on_imposter_hint_action(data):
         emit("error", {"msg": "session not found"})
         return
 
-    # Make sure the sender is actually the imposter in this session
+    # Make sure the sender is actually the imposter in this session by name
     imposter_name = s.imposter
-    sender = None
-    for p in s.players.values():
-        if p.sid == request.sid:
-            sender = p
-            break
-    if not sender or sender.name != imposter_name:
-        emit("error", {"msg": "only the imposter can act on hints"})
+    if not imposter_name or (username and username != imposter_name):
+        socketio.emit(
+            "hint_action_ack",
+            {"error": "Only the imposter can act on hints.", "session_id": session_id},
+            room=request.sid,
+        )
+        return
+
+    preview = manager.get_pending_hint(session_id, pending_id)
+    if not preview:
+        socketio.emit(
+            "hint_action_ack",
+            {"error": "Pending hint not found.", "session_id": session_id, "pending_id": pending_id},
+            room=request.sid,
+        )
+        return
+
+    action = action.lower()
+    if action not in ("pass", "manipulate"):
+        socketio.emit(
+            "hint_action_ack",
+            {"error": "Unknown hint action.", "pending_id": pending_id, "session_id": session_id},
+            room=request.sid,
+        )
+        return
+
+    manips_left = getattr(s, "manipulations_left", 10)
+    if action == "manipulate" and manips_left <= 0:
+        socketio.emit(
+            "hint_action_ack",
+            {
+                "error": "No manipulations remaining.",
+                "pending_id": pending_id,
+                "session_id": session_id,
+                "manipulations_left": manips_left,
+            },
+            room=request.sid,
+        )
         return
 
     pending = manager.resolve_pending_hint(session_id, pending_id)
     if not pending:
-        emit("error", {"msg": "pending hint not found"})
+        socketio.emit(
+            "hint_action_ack",
+            {"error": "Pending hint missing.", "pending_id": pending_id, "session_id": session_id},
+            room=request.sid,
+        )
         return
 
-    # For now we simply acknowledge the decision; in the next step we will
-    # actually apply the action to the underlying hint and notify the requester.
-    emit("hint_action_ack", {
-        "pending_id": pending_id,
-        "action": action,
-        "session_id": session_id
-    }, room=sender.sid)
+    final_clue = pending.get("clue") or ""
+    manipulated = False
+    if action == "manipulate":
+        manipulated = True
+        final_clue = override_clue if override_clue is not None else ""
+        s.manipulations_left = max(0, manips_left - 1)
+        manips_left = s.manipulations_left
+
+    requester_name = pending.get("requester")
+    hint_payload = {
+        "artifact": pending.get("artifact"),
+        "clue": final_clue,
+        "room": pending.get("room"),
+        "manipulated": manipulated,
+        "requester": requester_name,
+    }
+    # Broadcast to the session; clients filter so only the requester processes it.
+    socketio.emit("hint_response", hint_payload, room=session_id)
+
+    socketio.emit(
+        "hint_action_ack",
+        {
+            "pending_id": pending_id,
+            "action": action,
+            "session_id": session_id,
+            "manipulations_left": manips_left,
+        },
+        room=request.sid,
+    )
 
 @socketio.on("join_world_view")
 def on_join_world_view(data):
     session_id = data.get("session_id")
-    if not session_id:
+    username = data.get("username")
+    if not session_id or not username:
         return
-    # Only join the Socket.IO room for broadcast events, without adding a new player.
     join_room(session_id)
+    manager.register_world_view(session_id, username, request.sid)
+    # Ensure the shared countdown timer (10 minutes) is running as soon as
+    # the fantasy world view is active for this session. The GameManager
+    # will ignore duplicate start requests once the timer is running.
+    manager.start_timer(session_id, socketio)
+
+@socketio.on("disconnect")
+def on_disconnect():
+    # remove this socket from any world-view tracking
+    sid = request.sid
+    for session_id, session in manager.sessions.items():
+        for username, sockets in list(session.world_view_sids.items()):
+            if sid in sockets:
+                sockets.discard(sid)
+                if not sockets:
+                    session.world_view_sids.pop(username, None)
 
 if __name__ == "__main__":
     # Bind to localhost and use a non-default port to avoid conflicts

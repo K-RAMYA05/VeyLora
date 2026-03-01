@@ -55,6 +55,24 @@
       filter: brightness(1.15) saturate(1.2);
       animation: worldFloat 36s ease-in-out infinite alternate;
     }
+    .world-frame.locked {
+      filter: grayscale(0.4) brightness(0.8);
+    }
+    .world-frame.locked::after {
+      content: "Imposters observe only";
+      position: absolute;
+      inset: 0;
+      background: rgba(2,6,23,0.72);
+      color: #facc15;
+      font-size: 1.1rem;
+      letter-spacing: 0.18em;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
 
     .world-hotspot {
       position: absolute;
@@ -78,6 +96,90 @@
       font-size: 11px;
       color: var(--text-main);
       box-shadow: 0 10px 24px rgba(0,0,0,0.8);
+    }
+
+    .world-players {
+      position: fixed;
+      left: 18px;
+      top: 18px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.65);
+      background: rgba(15,23,42,0.9);
+      font-size: 11px;
+      color: var(--text-main);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
+      max-width: 180px;
+      z-index: 2;
+    }
+    .world-players-title {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .world-players-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .world-players-list li {
+      margin: 0;
+      padding: 0;
+      color: var(--text-main);
+    }
+
+    .imposter-guess {
+      position: fixed;
+      left: 18px;
+      bottom: 20px;
+      padding: 6px 10px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.65);
+      background: rgba(15,23,42,0.9);
+      font-size: 11px;
+      color: var(--text-main);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
+      max-width: 220px;
+      z-index: 2;
+    }
+    .imposter-guess-title {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .imposter-guess-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    #guessImposterName {
+      flex: 1;
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      color: var(--text-main);
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+    #btnSubmitGuess {
+      border: none;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: linear-gradient(135deg, #f97316, #fb923c);
+      color: #0f172a;
+      cursor: pointer;
+    }
+    #guessStatus {
+      margin-top: 3px;
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
     .hint-hud {
@@ -342,6 +444,183 @@
       box-shadow: 0 16px 32px rgba(251,191,36,0.9);
       transform: translateY(-1px);
     }
+
+    .imposter-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+    }
+    .imposter-card {
+      width: min(90vw, 420px);
+      padding: 20px 22px 24px;
+      border-radius: 20px;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.98), rgba(3,7,18,0.92));
+      border: 1px solid rgba(250,204,21,0.6);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: var(--text-main);
+    }
+    .imposter-card h3 {
+      margin: 0;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-size: 13px;
+    }
+    .imposter-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .imposter-base {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: rgba(191,219,254,0.9);
+    }
+    .imposter-base-text {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148,163,184,0.5);
+      min-height: 54px;
+      color: #f1f5f9;
+      font-size: 13px;
+      background: rgba(15,23,42,0.6);
+    }
+    #imposterHintInput {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.4);
+      background: rgba(15,23,42,0.8);
+      color: var(--text-main);
+      padding: 10px;
+      font-family: inherit;
+    }
+    .imposter-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .imposter-actions button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    #btnImposterPass {
+      background: rgba(148,163,184,0.2);
+      color: var(--text-main);
+      border: 1px solid rgba(148,163,184,0.4);
+    }
+    #btnImposterManipulate {
+      background: linear-gradient(135deg, #ffca5c, #f97316);
+      color: #0f172a;
+      box-shadow: 0 12px 24px rgba(251,191,36,0.6);
+    }
+    .world-players {
+      position: fixed;
+      left: 18px;
+      top: 18px;
+      padding: 8px 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.65);
+      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(17,24,39,0.95));
+      font-size: 11px;
+      color: var(--text-main);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
+      max-width: 190px;
+      z-index: 2;
+    }
+    .world-players-title {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .world-players-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .world-players-list li {
+      margin: 0;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(30,64,175,0.6);
+      border: 1px solid rgba(191,219,254,0.6);
+      color: var(--text-main);
+      font-size: 10px;
+    }
+
+    .imposter-guess {
+      position: fixed;
+      left: 18px;
+      top: 96px;
+      padding: 8px 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(250,204,21,0.7);
+      background: radial-gradient(circle at top, rgba(30,64,175,0.96), rgba(17,24,39,0.96));
+      font-size: 11px;
+      color: var(--text-main);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
+      max-width: 220px;
+      z-index: 2;
+    }
+    .imposter-guess-title {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #facc15;
+      margin-bottom: 4px;
+    }
+    .imposter-guess-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    #guessImposterName {
+      flex: 1;
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      color: var(--text-main);
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+    #btnSubmitGuess {
+      border: none;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: linear-gradient(135deg, #f97316, #fb923c);
+      color: #0f172a;
+      cursor: pointer;
+    }
+    #guessStatus {
+      margin-top: 3px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -377,8 +656,37 @@
   <div class="hint-hud">
     <span class="hint-hud-label">Your hints</span>
     <span class="hint-hud-status" id="worldHintHelper">Loading…</span>
-    <button id="btnManipulate" type="button" style="display:none;">Manipulate (5)</button>
-    <button id="btnDelay" type="button" style="display:none;">Delay (5)</button>
+    <button id="btnManipulate" type="button" style="display:none;">Manipulate (10)</button>
+  </div>
+  <div class="world-players" id="worldPlayers" style="display:none;">
+    <div class="world-players-title">Players</div>
+    <ul class="world-players-list" id="worldPlayersList"></ul>
+  </div>
+  <div class="imposter-guess" id="imposterGuessBox" style="display:none;">
+    <div class="imposter-guess-title">Guess imposter</div>
+    <div class="imposter-guess-row">
+      <input id="guessImposterName" type="text" autocomplete="off" placeholder="Type a name" />
+      <button id="btnSubmitGuess" type="button">Guess</button>
+    </div>
+    <div id="guessStatus"></div>
+  </div>
+  <div class="imposter-overlay" id="imposterHintOverlay">
+    <div class="imposter-card">
+      <h3>Clandestine relay</h3>
+      <div class="imposter-meta">
+        <span id="imposterHintRoom"></span>
+        <span id="imposterHintArtifact"></span>
+        <span id="imposterHintQuota"></span>
+      </div>
+      <div class="imposter-base">Original clue</div>
+      <div class="imposter-base-text" id="imposterHintBase"></div>
+      <label class="imposter-base" for="imposterHintInput">Send to seeker</label>
+      <textarea id="imposterHintInput" spellcheck="false"></textarea>
+      <div class="imposter-actions">
+        <button id="btnImposterPass" type="button">Pass original</button>
+        <button id="btnImposterManipulate" type="button">Send manipulation</button>
+      </div>
+    </div>
   </div>
   <div class="room-modal-overlay" id="roomModal">
     <div class="room-modal">
@@ -407,7 +715,6 @@
     const hintsEl = document.getElementById('hints');
     const btnHint = document.getElementById('btnRequestHint');
     const btnManipulate = document.getElementById('btnManipulate');
-    const btnDelay = document.getElementById('btnDelay');
     const timerLabelEl = document.getElementById('worldTimer');
     const roomModalEl = document.getElementById('roomModal');
     const roomImageEl = document.getElementById('roomImage');
@@ -416,8 +723,25 @@
     const roomCloseBtn = document.getElementById('roomClose');
     const hotspot1 = document.getElementById('artifactHotspot1');
     const hotspot2 = document.getElementById('artifactHotspot2');
+    const playersShell = document.getElementById('worldPlayers');
+    const playersListEl = document.getElementById('worldPlayersList');
+    const guessBoxEl = document.getElementById('imposterGuessBox');
+    const guessInputEl = document.getElementById('guessImposterName');
+    const guessBtnEl = document.getElementById('btnSubmitGuess');
+    const guessStatusEl = document.getElementById('guessStatus');
+    const impOverlay = document.getElementById('imposterHintOverlay');
+    const impRoomLabel = document.getElementById('imposterHintRoom');
+    const impArtifactLabel = document.getElementById('imposterHintArtifact');
+    const impQuotaLabel = document.getElementById('imposterHintQuota');
+    const impBaseText = document.getElementById('imposterHintBase');
+    const impInput = document.getElementById('imposterHintInput');
+    const btnImposterPass = document.getElementById('btnImposterPass');
+    const btnImposterManipulate = document.getElementById('btnImposterManipulate');
 
     const socket = io();
+    socket.onAny((event, ...args) => {
+      console.log('[socket event]', event, args);
+    });
     const my = { session: sessionId, name: username };
     let hintsUnlocked = true; // we only arrive here after hints_ready
     let hintsLeft = 0;
@@ -427,9 +751,14 @@
     let myScore = 0;
     let isImposter = false;
     let manipLeft = 5;
-    let delayLeft = 5;
+    let delayLeft = 0;
     let currentRoom = null;
     let baseHintQuota = null; // initial total hints for this player
+    let hintRequestPending = false;
+    let mapLockedForImposter = false;
+    let pendingImposterHint = null;
+    let registeredWorldName = null;
+    const roomHints = {};
 
     const ROOM_ARTIFACTS = {
       'Great Hall': ['Goblet of Echoes', 'Singing Chalice'],
@@ -474,6 +803,20 @@
       ]
     };
 
+    function canonicalRoomKey(name) {
+      if (!name) return 'unknown-room';
+      return name
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase() || 'unknown-room';
+    }
+
+    function displayRoomName(name) {
+      const trimmed = (name || '').trim();
+      return trimmed.length ? trimmed : 'Unknown Room';
+    }
+
     function configureRoomHotspots(roomName) {
       if (!hotspot1 || !hotspot2) return;
       const artifacts = ROOM_ARTIFACTS[roomName] || [];
@@ -497,18 +840,180 @@
       });
     }
 
+    function buildHintCard(entry) {
+      const card = document.createElement('div');
+      card.style.borderRadius = '10px';
+      card.style.border = '1px solid rgba(148,163,184,0.7)';
+      card.style.background = 'linear-gradient(135deg, rgba(15,23,42,0.98), rgba(56,189,248,0.9))';
+      card.style.padding = '8px 9px 7px';
+      card.style.fontSize = '12px';
+      card.style.boxShadow = '0 10px 18px rgba(15,23,42,0.85)';
+
+      const art = document.createElement('div');
+      art.style.fontSize = '11px';
+      art.style.textTransform = 'uppercase';
+      art.style.letterSpacing = '0.14em';
+      art.style.color = 'rgba(191,219,254,0.95)';
+      art.style.marginBottom = '2px';
+      art.textContent = entry.artifact || 'Unknown artifact';
+
+      const roomLine = document.createElement('div');
+      roomLine.style.fontSize = '11px';
+      roomLine.style.color = 'rgba(191,219,254,0.8)';
+      roomLine.style.marginBottom = '2px';
+      roomLine.textContent = 'Room: ' + (entry.roomDisplay || displayRoomName(entry.room));
+
+      const text = document.createElement('div');
+      text.style.fontSize = '12px';
+      text.style.color = '#e5e7eb';
+      text.textContent = entry.clue || 'The parchment arrives blank…';
+      if (!entry.clue) {
+        text.style.fontStyle = 'italic';
+      }
+
+      const meta = document.createElement('div');
+      meta.style.marginTop = '4px';
+      meta.style.fontSize = '10px';
+      meta.style.textTransform = 'uppercase';
+      meta.style.letterSpacing = '0.16em';
+      meta.style.color = 'rgba(148,163,184,0.9)';
+      meta.textContent = entry.manipulated
+        ? 'Hint channel · the words feel distorted'
+        : 'Hint channel · beware of illusions';
+
+      card.appendChild(art);
+      card.appendChild(roomLine);
+      card.appendChild(text);
+      card.appendChild(meta);
+      return card;
+    }
+
+    function renderRoomHints(roomName) {
+      if (!hintsEl) return;
+      const key = canonicalRoomKey(roomName);
+      const list = roomHints[key] || [];
+      hintsEl.innerHTML = '';
+      list.forEach(entry => {
+        hintsEl.appendChild(buildHintCard(entry));
+      });
+    }
+
+    function renderPlayersList(players) {
+      if (!playersShell || !playersListEl) return;
+      if (!players || !players.length) {
+        playersShell.style.display = 'none';
+        return;
+      }
+      playersShell.style.display = 'block';
+      playersListEl.innerHTML = '';
+      players.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p.name || '';
+        playersListEl.appendChild(li);
+      });
+      // Guess UI visibility is handled separately based on role
+      if (guessBoxEl && !isImposter) {
+        guessBoxEl.style.display = 'block';
+      }
+    }
+
+    function storeRoomHint(entry) {
+      const key = canonicalRoomKey(entry.room);
+      entry.roomDisplay = entry.roomDisplay || displayRoomName(entry.room);
+      roomHints[key] = roomHints[key] || [];
+      roomHints[key].unshift(entry);
+      if (roomHints[key].length > 20) {
+        roomHints[key].pop();
+      }
+      if (canonicalRoomKey(currentRoom) === key) {
+        renderRoomHints(currentRoom);
+      }
+    }
+
+    function finalizeHintRequestState() {
+      hintRequestPending = false;
+      if (btnHint) {
+        btnHint.disabled = hintsLeft <= 0;
+      }
+    }
+
+    function updateMapInteractivity() {
+      mapLockedForImposter = !!isImposter;
+      if (!worldFrameEl) return;
+      if (mapLockedForImposter) {
+        worldFrameEl.classList.add('locked');
+        worldFrameEl.style.pointerEvents = 'none';
+      } else {
+        worldFrameEl.classList.remove('locked');
+        worldFrameEl.style.pointerEvents = '';
+      }
+    }
+
+    function showImposterPrompt(payload) {
+      pendingImposterHint = payload;
+      if (!impOverlay || !impInput || !btnImposterManipulate || !btnImposterPass) {
+        // Fallback to simple confirm/prompt if the overlay cannot render.
+        const baseClue = payload.base_clue || '';
+        const info =
+          `Wizard ${payload.requester} seeks aid in ${payload.room}.\n` +
+          `Artifact: ${payload.artifact || 'Unknown artifact'}\n\n` +
+          `Original clue:\n${baseClue || '(none)'}\n\n` +
+          `OK: manipulate (${manipLeft} left)\nCancel: pass original`;
+        const wantsManip = window.confirm(info);
+        if (!wantsManip || manipLeft <= 0) {
+          socket.emit('imposter_hint_action', {
+            session_id: my.session,
+            pending_id: payload.pending_id,
+            action: 'pass',
+            clue: baseClue
+          });
+          pendingImposterHint = null;
+          return;
+        }
+        const newClue = window.prompt('Enter the manipulated clue (blank for silence).', baseClue || '');
+        socket.emit('imposter_hint_action', {
+          session_id: my.session,
+          pending_id: payload.pending_id,
+          action: 'manipulate',
+          clue: newClue === null ? baseClue : newClue
+        });
+        pendingImposterHint = null;
+        return;
+      }
+      if (impRoomLabel) {
+        impRoomLabel.textContent = `Room: ${payload.room || 'Unknown chamber'}`;
+      }
+      if (impArtifactLabel) {
+        impArtifactLabel.textContent = `Artifact: ${payload.artifact || 'Unseen relic'}`;
+      }
+      if (impQuotaLabel) {
+        impQuotaLabel.textContent = `Manipulations left: ${manipLeft}`;
+      }
+      if (impBaseText) {
+        impBaseText.textContent = payload.base_clue || '(No clue supplied)';
+      }
+      if (impInput) {
+        impInput.value = payload.base_clue || '';
+        impInput.focus();
+      }
+      impOverlay.style.display = 'flex';
+    }
+
+    function closeImposterPrompt() {
+      if (impOverlay) {
+        impOverlay.style.display = 'none';
+      }
+      pendingImposterHint = null;
+    }
+
     function updateHintHelperText() {
       if (!helperEl) return;
       if (isImposter) {
-        helperEl.textContent = 'You are the imposter. You have no hints, but you can subtly twist the clues others receive.';
+        helperEl.textContent = `You are the imposter. Manipulations left: ${manipLeft}. Use your power wisely.`;
         if (btnHint) btnHint.style.display = 'none';
         if (btnManipulate) {
           btnManipulate.style.display = 'inline-block';
           btnManipulate.textContent = `Manipulate (${manipLeft})`;
-        }
-        if (btnDelay) {
-          btnDelay.style.display = 'inline-block';
-          btnDelay.textContent = `Delay (${delayLeft})`;
         }
       } else {
         const effectiveUsed =
@@ -522,23 +1027,33 @@
           btnHint.disabled = hintsLeft <= 0;
         }
         if (btnManipulate) btnManipulate.style.display = 'none';
-        if (btnDelay) btnDelay.style.display = 'none';
       }
     }
 
     function syncStateFromStatus(data) {
       if (!data) return;
       const players = data.players || [];
-      const me = players.find(p => p.name === username);
+      let me = players.find(p => p.name === username);
+      if (!me && my.name) {
+        me = players.find(p => p.name === my.name);
+      }
+      if (me && me.name) {
+        my.name = me.name;
+        ensureWorldRegistration(me.name);
+      }
       if (typeof data.artifacts_total === 'number' && typeof data.artifacts_claimed === 'number') {
         artifactsLeft = Math.max(0, data.artifacts_total - data.artifacts_claimed);
       }
+      renderPlayersList(players);
       if (me) {
         if (typeof me.imposter === 'boolean') {
           isImposter = me.imposter;
         } else {
           // fall back: treat zero-hint-at-start as imposter
           isImposter = (me.hints_left || 0) === 0;
+        }
+        if (isImposter && typeof data.manipulations_left === 'number') {
+          manipLeft = data.manipulations_left;
         }
         // use backend game score (artifacts found only)
         if (typeof me.score === 'number') {
@@ -557,8 +1072,13 @@
           hintsUsed = me.hints_used;
         }
         updateHintHelperText();
+        updateMapInteractivity();
+        if (guessBoxEl) {
+          guessBoxEl.style.display = isImposter ? 'none' : 'block';
+        }
       } else if (helperEl) {
         helperEl.textContent = 'You are in the realm as an observer.';
+        updateMapInteractivity();
       }
     }
 
@@ -577,6 +1097,42 @@
 
     // Make the world image clickable via 8 hotspots placed over the artwork.
     const worldFrameEl = document.getElementById('worldFrame');
+
+    const SOUND_SOURCES = {
+      room: '/static/audio/room.wav',
+      probe: '/static/audio/probe.wav',
+      found: '/static/audio/found.wav',
+    };
+    const soundCache = {};
+
+    function playSound(name, volume = 0.9) {
+      const src = SOUND_SOURCES[name];
+      if (!src) return;
+      let audio = soundCache[name];
+      if (!audio) {
+        audio = new Audio(src);
+        audio.preload = 'auto';
+        soundCache[name] = audio;
+      }
+      try {
+        audio.currentTime = 0;
+        audio.volume = volume;
+        audio.play().catch(() => {});
+      } catch (err) {}
+    }
+
+    function playRoomClickSound() {
+      playSound('room', 0.85);
+    }
+
+    function playArtifactFoundSound() {
+      playSound('found', 0.95);
+    }
+
+    function playArtifactProbeSound() {
+      playSound('probe', 0.9);
+    }
+
     if (worldFrameEl) {
       const ROOM_CAPTIONS = {
         'Great Hall': 'A vast chamber of floating candles and echoing footsteps. Artifacts here tend to hide in plain sight among feasts and banners.',
@@ -588,23 +1144,11 @@
         'Astronomy Tower': 'Wind howls around telescopes and parapets. Sky‑touched artifacts cling to ledges and rafters.',
         'Headmaster\'s Office': 'Portraits, cabinets, and a grand desk. Powerful artifacts are kept close, but rarely in plain sight.'
       };
-      const audioCtx = window.AudioContext ? new AudioContext() : null;
-
-      function playRoomClickSound() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.25);
-      }
-
       worldFrameEl.addEventListener('click', (ev) => {
+        if (mapLockedForImposter) {
+          alert('As the imposter, you cannot search the grounds.');
+          return;
+        }
         const hotspot = ev.target.closest('.world-hotspot');
         if (!hotspot) return;
         const room = hotspot.getAttribute('data-room') || 'Unknown room';
@@ -619,6 +1163,7 @@
           playRoomClickSound();
           worldFrameEl.classList.add('world-shake');
           setTimeout(() => worldFrameEl.classList.remove('world-shake'), 250);
+          renderRoomHints(room);
         }
       });
     }
@@ -642,6 +1187,7 @@
       if (!btn) return;
       const artifactId = btn.dataset.artifact;
       if (!artifactId) return;
+      playArtifactProbeSound();
       if (!my.session || !my.name) {
         alert('Join a session first.');
         return;
@@ -660,15 +1206,26 @@
       hotspot2.addEventListener('click', () => submitArtifactFromHotspot(hotspot2));
     }
 
-    // Join the world view room so we receive hint responses and time updates.
+    function ensureWorldRegistration(name) {
+      if (!sessionId) return;
+      if (!name) return;
+      if (registeredWorldName === name) return;
+      registeredWorldName = name;
+      socket.emit('join_world_view', { session_id: sessionId, username: name });
+    }
+
     if (sessionId) {
-      socket.emit('join_world_view', { session_id: sessionId });
+      ensureWorldRegistration(username || my.name || '');
     }
 
     if (btnHint) {
       btnHint.onclick = () => {
         if (!hintsUnlocked) {
           alert('Hints are not available yet.');
+          return;
+        }
+        if (hintRequestPending) {
+          alert('A hint request is already pending. Wait for the current clue.');
           return;
         }
         if (!my.session || !my.name) {
@@ -679,54 +1236,121 @@
           alert('Step into a room on the map before requesting a hint.');
           return;
         }
-        socket.emit('request_hint', { session_id: my.session, username: my.name, room: currentRoom });
-      };
+        hintRequestPending = true;
+        if (btnHint) btnHint.disabled = true;
+        console.log('[request_hint] emit', my.session, my.name, currentRoom);
+      socket.emit('request_hint', { session_id: my.session, username: my.name, room: currentRoom });
+    };
+  }
+
+    socket.on('hint_prompt', (payload) => {
+      console.log('[hint_prompt] raw payload', payload);
+      if (!payload || !payload.pending_id) return;
+      const targetName = (payload.imposter || '').trim().toLowerCase();
+      const localNameRaw = my.name || username || '';
+      const localName = (localNameRaw || '').trim().toLowerCase();
+      // Only the imposter (by name) should see this overlay.
+      if (targetName && localName && targetName !== localName) {
+        console.warn('[hint_prompt] ignored for non-matching player', localNameRaw, 'target', payload.imposter);
+        return;
+      }
+      console.log('[imposter] hint_prompt received', payload);
+      if (typeof payload.manipulations_left === 'number') {
+        manipLeft = payload.manipulations_left;
+        updateHintHelperText();
+      }
+
+      pendingImposterHint = payload;
+      const artifactLabel = payload.artifact || 'Unknown artifact';
+      const baseClue = payload.base_clue || '';
+      if (!(impOverlay && impRoomLabel && impArtifactLabel && impQuotaLabel && impBaseText && impInput)) {
+        console.warn('[hint_prompt] overlay not ready');
+        return;
+      }
+      impRoomLabel.textContent = `Room: ${payload.room || 'Unknown chamber'}`;
+      impArtifactLabel.textContent = `Artifact: ${artifactLabel}`;
+      impQuotaLabel.textContent = `Manipulations left: ${manipLeft}`;
+      impBaseText.textContent = baseClue || '(No clue supplied)';
+      impInput.value = baseClue || '';
+      impOverlay.style.display = 'flex';
+    });
+
+    function sendImposterDecision(action) {
+      if (!pendingImposterHint) {
+        closeImposterPrompt();
+        return;
+      }
+      const baseClue = pendingImposterHint.base_clue || '';
+      let finalClue = baseClue;
+      if (action === 'manipulate') {
+        if (manipLeft <= 0) {
+          alert('No manipulations left; send the original clue.');
+          return;
+        }
+        finalClue = impInput ? impInput.value || '' : '';
+      }
+      socket.emit('imposter_hint_action', {
+        session_id: my.session,
+        pending_id: pendingImposterHint.pending_id,
+        action,
+        clue: finalClue,
+        username: my.name
+      });
+      console.log('[imposter] overlay decision sent', action);
+      closeImposterPrompt();
     }
 
+    function wireImposterButtons() {
+      if (btnImposterPass && !btnImposterPass.dataset.bound) {
+        btnImposterPass.dataset.bound = '1';
+        btnImposterPass.addEventListener('click', () => sendImposterDecision('pass'));
+      }
+      if (btnImposterManipulate && !btnImposterManipulate.dataset.bound) {
+        btnImposterManipulate.dataset.bound = '1';
+        btnImposterManipulate.addEventListener('click', () => sendImposterDecision('manipulate'));
+      }
+    }
+    wireImposterButtons();
+
+    socket.on('hint_action_ack', (payload) => {
+      if (typeof payload.manipulations_left === 'number') {
+        manipLeft = payload.manipulations_left;
+        updateHintHelperText();
+      }
+      if (payload.error) {
+        alert(payload.error);
+      }
+    });
+
     socket.on('hint_response', (d) => {
+      const complete = () => finalizeHintRequestState();
       if (d.error) {
+        complete();
         alert('Hint error: ' + d.error);
         return;
       }
-      // Surface the clue immediately to the player.
-      if (d.clue) {
-        alert(d.clue);
+      // Only the requester should process this hint.
+      if (d.requester && d.requester !== username && d.requester !== my.name) {
+        return;
       }
-      const card = document.createElement('div');
-      card.style.borderRadius = '10px';
-      card.style.border = '1px solid rgba(148,163,184,0.7)';
-      card.style.background = 'linear-gradient(135deg, rgba(15,23,42,0.98), rgba(56,189,248,0.9))';
-      card.style.padding = '8px 9px 7px';
-      card.style.fontSize = '12px';
-      card.style.boxShadow = '0 10px 18px rgba(15,23,42,0.85)';
+      const hasClueText = typeof d.clue === 'string' && d.clue.trim().length > 0;
+      const displayClue = hasClueText ? d.clue : 'The parchment arrives blank…';
+      const rawRoomName = d.room || currentRoom;
+      const roomDisplay = displayRoomName(rawRoomName);
+      alert(`(${roomDisplay}) ${displayClue}`);
 
-      const art = document.createElement('div');
-      art.style.fontSize = '11px';
-      art.style.textTransform = 'uppercase';
-      art.style.letterSpacing = '0.14em';
-      art.style.color = 'rgba(191,219,254,0.95)';
-      art.style.marginBottom = '2px';
-      art.textContent = d.artifact || 'Unknown artifact';
-
-      const text = document.createElement('div');
-      text.style.fontSize = '12px';
-      text.style.color = '#e5e7eb';
-      text.textContent = d.clue || '';
-
-      const meta = document.createElement('div');
-      meta.style.marginTop = '4px';
-      meta.style.fontSize = '10px';
-      meta.style.textTransform = 'uppercase';
-      meta.style.letterSpacing = '0.16em';
-      meta.style.color = 'rgba(148,163,184,0.9)';
-      meta.textContent = 'Hint channel · beware of illusions';
-
-      card.appendChild(art);
-      card.appendChild(text);
-      card.appendChild(meta);
-
+      const entry = {
+        room: rawRoomName,
+        roomDisplay,
+        artifact: d.artifact || 'Unknown artifact',
+        clue: displayClue,
+        manipulated: !!d.manipulated,
+      };
+      // update in-memory history for this room
+      storeRoomHint(entry);
+      // and immediately show it in the current room panel
       if (hintsEl) {
-        hintsEl.prepend(card);
+        hintsEl.prepend(buildHintCard(entry));
       }
       // Optimistically update, then resync from server
       hintsUsed += 1;
@@ -741,6 +1365,7 @@
           .then(syncStateFromStatus)
           .catch(() => {});
       }
+      complete();
     });
 
     let localSeconds = null;
@@ -809,8 +1434,58 @@
       }
       updateHintHelperText();
       if (res.ok && d.username === username) {
+        playArtifactFoundSound();
         alert('You found an artifact!');
       }
+    });
+    socket.on('player_list', (payload) => {
+      if (!payload) return;
+      renderPlayersList(payload.players || []);
+    });
+
+    if (guessBtnEl && guessInputEl) {
+      let guessSubmitted = false;
+      const submitGuess = () => {
+        if (guessSubmitted) {
+          if (guessStatusEl) guessStatusEl.textContent = 'You have already guessed.';
+          return;
+        }
+        const name = (guessInputEl.value || '').trim();
+        if (!name) {
+          if (guessStatusEl) guessStatusEl.textContent = 'Type a name to guess.';
+          return;
+        }
+        if (!my.session || !my.name) {
+          alert('Missing session or name in URL.');
+          return;
+        }
+        socket.emit('vote_imposter', {
+          session_id: my.session,
+          username: my.name,
+          vote: name,
+        });
+        guessSubmitted = true;
+        guessInputEl.disabled = true;
+        guessBtnEl.disabled = true;
+        if (guessStatusEl) guessStatusEl.textContent = 'Guess submitted.';
+      };
+      guessBtnEl.addEventListener('click', submitGuess);
+      guessInputEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          submitGuess();
+        }
+      });
+    }
+
+    socket.on('vote_results', (payload) => {
+      if (!payload) return;
+      const voted = payload.voted_imposter || 'Unknown';
+      const actual = payload.actual_imposter || 'Unknown';
+      const msg = voted === actual
+        ? `Majority guessed ${voted}, which is correct!`
+        : `Majority guessed ${voted}, but the imposter was ${actual}.`;
+      alert(msg);
     });
 
     socket.on('game_over', (d) => {

@@ -13,9 +13,6 @@ class ArtifactManager:
         self.claimed = set()
         # room -> [artifact names in order]
         self.room_artifacts_order = {}
-        # manipulation tracking per session
-        self.manipulations_left = {}  # session_id -> remaining manipulations by imposter
-        self.delays_used = {}         # session_id -> delay uses count
 
     def setup_new_session(self):
         # randomly place artifacts in rooms; each room fewer than 4 artifacts by design (<=3)
@@ -65,6 +62,9 @@ class ArtifactManager:
                     for art, clues in artifacts.items():
                         if isinstance(clues, list) and clues:
                             self.artifact_clues[art] = list(clues)
+                        # track static room placement so later we can mention
+                        # which chamber a hint refers to.
+                        self.artifact_locations[art] = room_name
                 loaded = True
             except Exception as e:
                 print("Failed to load artifact hints file:", e)
@@ -96,7 +96,15 @@ class ArtifactManager:
         if not clues:
             return None
         clue = clues.pop(0)
-        return {"artifact": artifact, "clue": clue}
+        # try to report which room this artifact belongs to, falling back to unknown
+        room = self.artifact_locations.get(artifact)
+        if not room:
+            # try to infer from room order data
+            for r, arts in self.room_artifacts_order.items():
+                if artifact in arts:
+                    room = r
+                    break
+        return {"artifact": artifact, "clue": clue, "room": room}
 
     def provide_room_hint(self, session_id, room, players):
         """
@@ -121,7 +129,7 @@ class ArtifactManager:
             clues = self.artifact_clues.get(artifact, [])
             if clues:
                 clue = clues.pop(0)
-                return {"artifact": artifact, "clue": clue}
+                return {"artifact": artifact, "clue": clue, "room": room}
         # no artifact in this room has clues left
         return None
 
