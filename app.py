@@ -125,6 +125,21 @@ def pending_hint():
     }
     return jsonify(payload)
 
+@app.route("/latest_hint", methods=["GET"])
+def latest_hint():
+    """
+    HTTP fallback for the requester: returns the next delivered hint
+    for this player (if any), then removes it from the queue.
+    """
+    session_id = request.args.get("session_id")
+    username = request.args.get("username")
+    if not session_id or not username:
+        return jsonify({"error": "session_id and username required"}), 400
+    hint = manager.pop_latest_hint(session_id, username)
+    if not hint:
+        return jsonify({})
+    return jsonify(hint)
+
 # SocketIO events
 @socketio.on("join_session")
 def on_join(data):
@@ -253,6 +268,9 @@ def on_player_ready(data):
     # start game only when all 5 players have clicked start
     if all_ready:
         manager.start_game(session_id, socketio)
+        # As soon as everyone has clicked Start Game in the lobby,
+        # begin the shared countdown timer.
+        manager.start_timer(session_id, socketio)
 
 @socketio.on("request_hint_interactive")
 def on_request_hint_interactive(data):
@@ -356,6 +374,8 @@ def on_imposter_hint_action(data):
         "manipulated": manipulated,
         "requester": requester_name,
     }
+    # Record for HTTP polling fallback by the requester.
+    manager.record_hint_delivery(session_id, requester_name, hint_payload)
     # Broadcast to the session; clients filter so only the requester processes it.
     socketio.emit("hint_response", hint_payload, room=session_id)
 

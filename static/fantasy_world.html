@@ -746,6 +746,7 @@
     const roomHints = {};
     let imposterPollTimer = null;
     let lastPolledPendingId = null;
+    let requesterPollTimer = null;
 
     const ROOM_ARTIFACTS = {
       'Great Hall': ['Goblet of Echoes', 'Singing Chalice'],
@@ -1247,9 +1248,56 @@
         hintRequestPending = true;
         if (btnHint) btnHint.disabled = true;
         console.log('[request_hint] emit', my.session, my.name, currentRoom);
-      socket.emit('request_hint', { session_id: my.session, username: my.name, room: currentRoom });
-    };
-  }
+        socket.emit('request_hint', { session_id: my.session, username: my.name, room: currentRoom });
+        // Start requester HTTP polling fallback so the hint arrives even
+        // if the Socket.IO 'hint_response' event is missed.
+        if (!requesterPollTimer && sessionId && my.name) {
+          requesterPollTimer = setInterval(() => {
+            fetch(`/latest_hint?session_id=${encodeURIComponent(sessionId)}&username=${encodeURIComponent(my.name)}`)
+              .then(r => r.ok ? r.json() : {})
+              .then(d => {
+                if (!d || !d.clue) return;
+                // Process as if it came from the Socket.IO channel.
+                const complete = () => finalizeHintRequestState();
+                // Only the requester should process this hint.
+                if (d.requester && d.requester !== username && d.requester !== my.name) {
+                  return;
+                }
+                const hasClueText = typeof d.clue === 'string' && d.clue.trim().length > 0;
+                const displayClue = hasClueText ? d.clue : 'The parchment arrives blank…';
+                const rawRoomName = d.room || currentRoom;
+                const roomDisplay = displayRoomName(rawRoomName);
+                alert(`(${roomDisplay}) ${displayClue}`);
+
+                const entry = {
+                  room: rawRoomName,
+                  roomDisplay,
+                  artifact: d.artifact || 'Unknown artifact',
+                  clue: displayClue,
+                  manipulated: !!d.manipulated,
+                };
+                storeRoomHint(entry);
+                if (hintsEl) {
+                  hintsEl.prepend(buildHintCard(entry));
+                }
+                hintsUsed += 1;
+                if (hintsLeft > 0) {
+                  hintsLeft -= 1;
+                }
+                updateHintHelperText();
+                if (sessionId) {
+                  fetch(`/status/${encodeURIComponent(sessionId)}`)
+                    .then(r => r.json())
+                    .then(syncStateFromStatus)
+                    .catch(() => {});
+                }
+                complete();
+              })
+              .catch(() => {});
+          }, 2000);
+        }
+      };
+    }
 
     socket.on('hint_prompt', (payload) => {
       console.log('[hint_prompt] raw payload', payload);

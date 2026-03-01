@@ -48,6 +48,8 @@ class Session:
         # imposter powers
         self.manipulations_left = 10
         self.delay_uses = 0
+        # delivered hints per requester: name -> list of hint dicts
+        self.delivered_hints = {}
 
     def to_dict(self):
         total_artifacts = len(self.artifact_manager.ARTIFACTS)
@@ -236,6 +238,30 @@ class GameManager:
             out["pending_id"] = pid
             return out
         return None
+
+    def record_hint_delivery(self, session_id, requester, hint_payload):
+        """
+        Record a delivered hint for later HTTP polling by the requester.
+        Hints are stored per requester in a simple FIFO list.
+        """
+        s = self.sessions.get(session_id)
+        if not s or not requester:
+          return
+        bucket = s.delivered_hints.setdefault(requester, [])
+        bucket.append(dict(hint_payload))
+
+    def pop_latest_hint(self, session_id, requester):
+        """
+        Pop and return the oldest pending delivered hint for this requester,
+        or None if there are none.
+        """
+        s = self.sessions.get(session_id)
+        if not s or not requester:
+          return None
+        bucket = s.delivered_hints.get(requester)
+        if not bucket:
+          return None
+        return bucket.pop(0)
 
     def resolve_pending_hint(self, session_id, pending_id):
         """
